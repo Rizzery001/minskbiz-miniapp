@@ -1,14 +1,16 @@
 import L from 'leaflet'
-import { useEffect, useMemo, useState } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
-import { applyTheme, init as tgInit } from '../../lib/telegram'
-import ListingPopup from './ListingPopup'
+import { applyTheme, hapticFeedback, init as tgInit } from '../../lib/telegram'
+import FarmerSheet from './FarmerSheet'
+import LocateMeButton from './LocateMeButton'
 import { getCategoryStyle, normalizeCategory } from './categoryColors'
 
 const MINSK_CENTER: [number, number] = [53.9, 27.5667]
 const INITIAL_ZOOM = 10
+const LOCATE_ZOOM = 14
 const MIN_RADIUS_KM = 1
 const MAX_RADIUS_KM = 200
 const DEBOUNCE_MS = 400
@@ -71,10 +73,24 @@ function ViewportTracker({ onChange }: ViewportTrackerProps) {
   return null
 }
 
+interface MapInstanceCaptureProps {
+  onReady: (map: L.Map) => void
+}
+
+function MapInstanceCapture({ onReady }: MapInstanceCaptureProps) {
+  const map = useMap()
+  useEffect(() => {
+    onReady(map)
+  }, [map, onReady])
+  return null
+}
+
 export default function FarmersMap() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [view, setView] = useState<ViewState | null>(null)
   const [debouncedView, setDebouncedView] = useState<ViewState | null>(null)
+  const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
+  const [mapInstance, setMapInstance] = useState<L.Map | null>(null)
 
   const { data: user, error: userError } = useUserMe()
 
@@ -143,6 +159,16 @@ export default function FarmersMap() {
     })
   }
 
+  const handleLocate = useCallback(
+    (coords: [number, number]) => {
+      if (!mapInstance) return
+      mapInstance.flyTo(coords, LOCATE_ZOOM)
+    },
+    [mapInstance],
+  )
+
+  const closeSheet = useCallback(() => setSelectedSellerId(null), [])
+
   if (userError?.code === 'unauthorized') {
     return (
       <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tg-bg)' }}>
@@ -171,6 +197,7 @@ export default function FarmersMap() {
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <ViewportTracker onChange={setView} />
+        <MapInstanceCapture onReady={setMapInstance} />
         {visibleListings.map((listing) => {
           const style = getCategoryStyle(listing.category)
           const emoji = listing.emoji ?? style.emoji
@@ -179,11 +206,13 @@ export default function FarmersMap() {
               key={listing.id}
               position={[listing.location_lat, listing.location_lng]}
               icon={makeMarkerIcon(style.color, emoji)}
-            >
-              <Popup>
-                <ListingPopup listing={listing} />
-              </Popup>
-            </Marker>
+              eventHandlers={{
+                click: () => {
+                  hapticFeedback.light()
+                  setSelectedSellerId(listing.seller_id)
+                },
+              }}
+            />
           )
         })}
       </MapContainer>
@@ -231,6 +260,8 @@ export default function FarmersMap() {
         )}
       </div>
 
+      <LocateMeButton onLocate={handleLocate} />
+
       {listingsLoading && !listingsError && (
         <div
           className="absolute left-1/2 -translate-x-1/2 z-[900] px-4 py-2 rounded-full text-sm shadow-md"
@@ -252,6 +283,14 @@ export default function FarmersMap() {
             onRetry={refetchListings}
           />
         </div>
+      )}
+
+      {selectedSellerId !== null && (
+        <FarmerSheet
+          sellerId={selectedSellerId}
+          listings={listings ?? []}
+          onClose={closeSheet}
+        />
       )}
     </div>
   )
