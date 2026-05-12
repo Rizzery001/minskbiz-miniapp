@@ -1,16 +1,16 @@
-import eruda from 'eruda'
-eruda.init()
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
-import 'leaflet/dist/leaflet.css'
 import './index.css'
+import 'leaflet/dist/leaflet.css'
 
-const rootEl = document.getElementById('root')
-if (!rootEl) throw new Error('Root element not found')
+// Eruda mobile console — only when ?debug=1 is in URL
+if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('debug') === '1') {
+  import('eruda').then((m) => m.default.init())
+}
 
-ReactDOM.createRoot(rootEl).render(
+ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
     <BrowserRouter>
       <App />
