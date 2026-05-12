@@ -1,9 +1,9 @@
 export function formatPrice(
-  value: number,
+  pricePerUnit: number,
   currency: string,
   unit: string,
 ): string {
-  const num = value.toFixed(2)
+  const num = pricePerUnit.toFixed(2)
   return `${num} ${currency}/${unit}`
 }
 

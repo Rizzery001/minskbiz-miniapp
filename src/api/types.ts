@@ -11,21 +11,26 @@ export interface UserMe {
   location?: Coordinates
 }
 
-export interface Farmer {
-  id: string
-  name: string
-  phone?: string
-}
-
 export interface Listing {
   id: string
-  farmer: Farmer
-  product: string
+  title: string
   category: string
-  price: number
+  emoji?: string
+  price_per_unit: number
   currency: string
   unit: string
-  photo_url?: string
-  location: Coordinates
+  quantity?: number
+  seller_id: string
+  seller_name: string
+  seller_phone?: string
+  location_label?: string
+  location_lat: number
+  location_lng: number
+  available_until?: string
   distance_km?: number
+}
+
+export interface ListingsResponse {
+  count: number
+  items: Listing[]
 }

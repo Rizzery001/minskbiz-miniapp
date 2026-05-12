@@ -14,14 +14,23 @@ const MINSK_CENTER: Coordinates = { lat: 53.9, lng: 27.5667 }
 const DEFAULT_RADIUS_KM = 10
 const GEO_TIMEOUT_MS = 5000
 
-function makeMarkerIcon(color: string): L.DivIcon {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28"><circle cx="14" cy="14" r="9" fill="${color}" stroke="white" stroke-width="3"/></svg>`
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function makeMarkerIcon(color: string, emoji: string): L.DivIcon {
+  const html = `<div style="width:32px;height:32px;border-radius:9999px;background:${color};border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;">${escapeHtml(emoji)}</div>`
   return L.divIcon({
-    html: svg,
+    html,
     className: 'farmer-marker',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -10],
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+    popupAnchor: [0, -14],
   })
 }
 
@@ -124,8 +133,11 @@ export default function FarmersMap() {
 
   const visibleListings = useMemo(() => {
     if (!listings) return []
-    if (selectedCategories.size === 0) return listings
-    return listings.filter((l) =>
+    const withCoords = listings.filter(
+      (l) => Number.isFinite(l.location_lat) && Number.isFinite(l.location_lng),
+    )
+    if (selectedCategories.size === 0) return withCoords
+    return withCoords.filter((l) =>
       selectedCategories.has(normalizeCategory(l.category)),
     )
   }, [listings, selectedCategories])
@@ -173,11 +185,12 @@ export default function FarmersMap() {
         {resolvedCenter && <MapCenterUpdater center={resolvedCenter} />}
         {visibleListings.map((listing) => {
           const style = getCategoryStyle(listing.category)
+          const emoji = listing.emoji ?? style.emoji
           return (
             <Marker
               key={listing.id}
-              position={[listing.location.lat, listing.location.lng]}
-              icon={makeMarkerIcon(style.color)}
+              position={[listing.location_lat, listing.location_lng]}
+              icon={makeMarkerIcon(style.color, emoji)}
             >
               <Popup>
                 <ListingPopup listing={listing} />

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet, ApiError } from './client'
-import type { Listing, UserMe } from './types'
+import type { Listing, ListingsResponse, UserMe } from './types'
 
 export interface AsyncResult<T> {
   data: T | null
@@ -73,13 +73,13 @@ export function useListings(
     setLoading(true)
     setError(null)
 
-    apiGet<Listing[]>('/listings', {
+    apiGet<ListingsResponse>('/listings', {
       lat,
       lng,
       radius_km: radiusKm,
     })
       .then((res) => {
-        if (!cancelled) setData(res)
+        if (!cancelled) setData(res.items)
       })
       .catch((err: unknown) => {
         if (cancelled) return

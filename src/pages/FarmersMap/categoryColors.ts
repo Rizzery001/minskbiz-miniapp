@@ -30,7 +30,10 @@ const STYLES: Record<string, CategoryStyle> = {
   яйца: { color: '#facc15', emoji: '🥚', label: 'Яйца' },
   fish: { color: '#06b6d4', emoji: '🐟', label: 'Рыба' },
   рыба: { color: '#06b6d4', emoji: '🐟', label: 'Рыба' },
+  flour: { color: '#d97706', emoji: '🌾', label: 'Мука' },
+  мука: { color: '#d97706', emoji: '🌾', label: 'Мука' },
   other: FALLBACK_STYLE,
+  другое: FALLBACK_STYLE,
   неизвестное: FALLBACK_STYLE,
 }
 
