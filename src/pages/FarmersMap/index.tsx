@@ -1,15 +1,17 @@
 import L from 'leaflet'
-import { useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
+import { useEffect, useMemo, useState } from 'react'
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
 import { applyTheme, init as tgInit } from '../../lib/telegram'
-import FilterBar from './FilterBar'
 import ListingPopup from './ListingPopup'
 import { getCategoryStyle, normalizeCategory } from './categoryColors'
 
 const MINSK_CENTER: [number, number] = [53.9, 27.5667]
-const DEFAULT_RADIUS_KM = 10
+const INITIAL_ZOOM = 10
+const MIN_RADIUS_KM = 1
+const MAX_RADIUS_KM = 200
+const DEBOUNCE_MS = 400
 
 function isValidLatLng(lat: unknown, lng: unknown): lat is number {
   return (
@@ -30,22 +32,49 @@ function makeMarkerIcon(color: string, emoji: string): L.DivIcon {
   })
 }
 
-function MapCenterUpdater({ center }: { center: [number, number] }) {
+interface ViewState {
+  lat: number
+  lng: number
+  radius_km: number
+}
+
+interface ViewportTrackerProps {
+  onChange: (v: ViewState) => void
+}
+
+function ViewportTracker({ onChange }: ViewportTrackerProps) {
   const map = useMap()
-  const prevRef = useRef<[number, number] | null>(null)
+
+  const compute = () => {
+    const c = map.getCenter()
+    const bounds = map.getBounds()
+    const ne = bounds.getNorthEast()
+    // distance from center to NE corner = half-diagonal in meters
+    const halfDiag = c.distanceTo(ne) / 1000
+    const radius = Math.min(MAX_RADIUS_KM, Math.max(MIN_RADIUS_KM, Math.round(halfDiag)))
+    if (isValidLatLng(c.lat, c.lng)) {
+      onChange({ lat: c.lat, lng: c.lng, radius_km: radius })
+    }
+  }
+
   useEffect(() => {
-    if (!isValidLatLng(center[0], center[1])) return
-    const prev = prevRef.current
-    if (prev && prev[0] === center[0] && prev[1] === center[1]) return
-    prevRef.current = center
-    map.setView(center, map.getZoom())
-  }, [center, map])
+    // initial fire
+    compute()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useMapEvents({
+    moveend: compute,
+    zoomend: compute,
+  })
+
   return null
 }
 
 export default function FarmersMap() {
-  const [radiusKm, setRadiusKm] = useState<number>(DEFAULT_RADIUS_KM)
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const [view, setView] = useState<ViewState | null>(null)
+  const [debouncedView, setDebouncedView] = useState<ViewState | null>(null)
 
   const { data: user, error: userError } = useUserMe()
 
@@ -61,31 +90,33 @@ export default function FarmersMap() {
     return { lat: loc.lat, lng: loc.lng }
   }, [user])
 
-  const center: [number, number] = userLocation
+  const initialCenter: [number, number] = userLocation
     ? [userLocation.lat, userLocation.lng]
     : MINSK_CENTER
 
-  const queryLat = userLocation ? userLocation.lat : MINSK_CENTER[0]
-  const queryLng = userLocation ? userLocation.lng : MINSK_CENTER[1]
+  // Debounce view → debouncedView
+  useEffect(() => {
+    if (!view) return
+    const t = window.setTimeout(() => setDebouncedView(view), DEBOUNCE_MS)
+    return () => window.clearTimeout(t)
+  }, [view])
 
   const {
     data: listings,
     loading: listingsLoading,
     error: listingsError,
     refetch: refetchListings,
-  } = useListings({
-    lat: queryLat,
-    lng: queryLng,
-    radius_km: radiusKm,
-  })
+  } = useListings(
+    debouncedView
+      ? { lat: debouncedView.lat, lng: debouncedView.lng, radius_km: debouncedView.radius_km }
+      : null,
+  )
 
   useEffect(() => {
-    console.log('[FarmersMap] user:', user)
-    console.log('[FarmersMap] userLocation:', userLocation)
-    console.log('[FarmersMap] center:', center)
-    console.log('[FarmersMap] radiusKm:', radiusKm)
+    console.log('[FarmersMap] view:', view)
+    console.log('[FarmersMap] debouncedView:', debouncedView)
     console.log('[FarmersMap] listings count:', listings?.length)
-  }, [user, userLocation, listings, radiusKm])
+  }, [view, debouncedView, listings])
 
   const visibleListings = useMemo(() => {
     if (!listings) return []
@@ -126,8 +157,8 @@ export default function FarmersMap() {
   return (
     <div className="relative w-full h-full" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <MapContainer
-        center={center}
-        zoom={10}
+        center={initialCenter}
+        zoom={INITIAL_ZOOM}
         minZoom={6}
         maxZoom={18}
         scrollWheelZoom
@@ -139,7 +170,7 @@ export default function FarmersMap() {
           attribution='&copy; OpenStreetMap'
           url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        <MapCenterUpdater center={center} />
+        <ViewportTracker onChange={setView} />
         {visibleListings.map((listing) => {
           const style = getCategoryStyle(listing.category)
           const emoji = listing.emoji ?? style.emoji
@@ -157,19 +188,54 @@ export default function FarmersMap() {
         })}
       </MapContainer>
 
-      <FilterBar
-        availableCategories={availableCategories}
-        selectedCategories={selectedCategories}
-        onToggleCategory={toggleCategory}
-        radiusKm={radiusKm}
-        onRadiusChange={setRadiusKm}
-      />
+      {/* Top status bar */}
+      <div
+        className="absolute top-0 inset-x-0 z-[1000] px-3"
+        style={{
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
+          background: 'linear-gradient(to bottom, var(--tg-bg) 0%, var(--tg-bg) 70%, transparent 100%)',
+          paddingBottom: 16,
+        }}
+      >
+        <div className="flex items-center justify-between mb-2 px-1">
+          <span className="text-xs" style={{ color: 'var(--tg-hint)' }}>
+            {debouncedView ? `${debouncedView.radius_km} км` : '...'}
+          </span>
+          <span className="text-xs" style={{ color: 'var(--tg-hint)' }}>
+            {visibleListings.length} предложений
+          </span>
+        </div>
+        {availableCategories.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto -mx-3 px-3 scrollbar-hide">
+            {availableCategories.map((cat) => {
+              const style = getCategoryStyle(cat)
+              const active = selectedCategories.has(cat)
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => toggleCategory(cat)}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition"
+                  style={{
+                    backgroundColor: active ? style.color : 'var(--tg-secondary-bg)',
+                    color: active ? '#fff' : 'var(--tg-text)',
+                    border: active ? 'none' : '1px solid transparent',
+                  }}
+                >
+                  <span>{style.emoji}</span>
+                  <span>{style.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {listingsLoading && !listingsError && (
         <div
           className="absolute left-1/2 -translate-x-1/2 z-[900] px-4 py-2 rounded-full text-sm shadow-md"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 80px)',
+            top: 'calc(env(safe-area-inset-top, 0px) + 100px)',
             backgroundColor: 'var(--tg-bg)',
             color: 'var(--tg-text)',
           }}
