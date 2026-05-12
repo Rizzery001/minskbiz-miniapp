@@ -12,6 +12,8 @@ interface TelegramMainButton {
   setText(text: string): void
   onClick(handler: () => void): void
   offClick(handler: () => void): void
+  showProgress?: (leaveActive?: boolean) => void
+  hideProgress?: () => void
 }
 
 interface TelegramBackButton {

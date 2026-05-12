@@ -181,7 +181,7 @@ export default function FarmersMap() {
   }
 
   return (
-    <div className="relative w-full h-full" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
+    <div className="relative w-full h-full">
       <MapContainer
         center={initialCenter}
         zoom={INITIAL_ZOOM}

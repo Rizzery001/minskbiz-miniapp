@@ -53,6 +53,12 @@ export const mainButton = {
   offClick(handler: () => void): void {
     tg()?.MainButton.offClick(handler)
   },
+  showProgress(): void {
+    tg()?.MainButton.showProgress?.()
+  },
+  hideProgress(): void {
+    tg()?.MainButton.hideProgress?.()
+  },
 }
 
 export const backButton = {
@@ -82,6 +88,9 @@ export const hapticFeedback = {
   },
   success(): void {
     tg()?.HapticFeedback.notificationOccurred('success')
+  },
+  warning(): void {
+    tg()?.HapticFeedback.notificationOccurred('warning')
   },
   error(): void {
     tg()?.HapticFeedback.notificationOccurred('error')

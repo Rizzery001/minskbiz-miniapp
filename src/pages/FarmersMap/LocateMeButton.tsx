@@ -52,7 +52,7 @@ export default function LocateMeButton({ onLocate }: Props) {
         aria-busy={loading}
         className="absolute z-[1100] w-12 h-12 rounded-full flex items-center justify-center active:opacity-80"
         style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+          bottom: 16,
           right: 16,
           backgroundColor: 'var(--tg-bg)',
           color: 'var(--tg-text)',
