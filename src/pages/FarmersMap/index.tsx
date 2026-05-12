@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
@@ -14,6 +14,7 @@ import { getCategoryStyle, normalizeCategory } from './categoryColors'
 
 const MINSK_CENTER: [number, number] = [53.9, 27.5667]
 const INITIAL_ZOOM = 10
+const RECENTER_ZOOM = 11
 const LOCATE_ZOOM = 14
 const MIN_RADIUS_KM = 1
 const MAX_RADIUS_KM = 200
@@ -104,6 +105,47 @@ function MapInstanceCapture({ onReady }: MapInstanceCaptureProps) {
   return null
 }
 
+interface MapSizeFixerProps {
+  initialCenter: [number, number]
+  recenterZoom: number
+}
+
+function MapSizeFixer({ initialCenter, recenterZoom }: MapSizeFixerProps) {
+  const map = useMap()
+  const initRef = useRef({ center: initialCenter, zoom: recenterZoom })
+  initRef.current = { center: initialCenter, zoom: recenterZoom }
+  const didInitRef = useRef(false)
+
+  useEffect(() => {
+    const container = map.getContainer()
+    const handleResize = () => map.invalidateSize()
+
+    const rafId = window.requestAnimationFrame(() => {
+      map.invalidateSize()
+      if (!didInitRef.current) {
+        didInitRef.current = true
+        const { center, zoom } = initRef.current
+        map.flyTo(center, zoom)
+      }
+    })
+
+    let observer: ResizeObserver | null = null
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(handleResize)
+      observer.observe(container)
+    }
+    window.addEventListener('resize', handleResize)
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      observer?.disconnect()
+      window.removeEventListener('resize', handleResize)
+    }
+  }, [map])
+
+  return null
+}
+
 export default function FarmersMap() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [view, setView] = useState<ViewState | null>(null)
@@ -182,7 +224,7 @@ export default function FarmersMap() {
   const closeSheet = useCallback(() => setSelectedSellerId(null), [])
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ minHeight: 0 }}>
       <MapContainer
         center={initialCenter}
         zoom={INITIAL_ZOOM}
@@ -203,6 +245,7 @@ export default function FarmersMap() {
         />
         <ViewportTracker onChange={setView} />
         <MapInstanceCapture onReady={setMapInstance} />
+        <MapSizeFixer initialCenter={initialCenter} recenterZoom={RECENTER_ZOOM} />
         {visibleListings.map((listing) => {
           const style = getCategoryStyle(listing.category)
           const emoji = listing.emoji ?? style.emoji
