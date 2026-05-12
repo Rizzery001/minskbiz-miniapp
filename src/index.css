@@ -136,3 +136,22 @@ button {
 .farmer-offer-card {
   background: var(--tg-sheet-card-bg);
 }
+
+/* search input */
+.search-input-wrapper:focus-within {
+  box-shadow: var(--tg-shadow-sm);
+}
+.search-input::placeholder {
+  color: var(--tg-hint);
+  opacity: 1;
+}
+
+/* freshness badge — "today" theme variant */
+.badge-today {
+  background: rgba(16, 185, 129, 0.15);
+  color: #047857;
+}
+[data-theme='dark'] .badge-today {
+  background: rgba(16, 185, 129, 0.2);
+  color: #6ee7b7;
+}

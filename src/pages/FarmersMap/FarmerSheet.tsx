@@ -1,4 +1,4 @@
-import { Minus, Plus, Store, X } from 'lucide-react'
+import { Minus, Plus, Sparkles, Store, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Listing } from '../../api/types'
 import {
@@ -6,7 +6,7 @@ import {
   removeFromCart,
   setQuantity,
 } from '../../lib/cart'
-import { formatPrice } from '../../lib/format'
+import { formatPrice, parseFreshness } from '../../lib/format'
 import { backButton, hapticFeedback } from '../../lib/telegram'
 import { useCartQuantity } from '../../lib/useCart'
 import { getCategoryStyle } from './categoryColors'
@@ -206,12 +206,47 @@ export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
   )
 }
 
+function FreshnessBadge({ isToday, text }: { isToday: boolean; text: string }) {
+  if (isToday) {
+    return (
+      <span
+        className="badge-today inline-flex items-center gap-1 rounded-full"
+        style={{
+          padding: '3px 8px',
+          fontSize: 11,
+          fontWeight: 500,
+          lineHeight: 1,
+        }}
+      >
+        <Sparkles size={12} aria-hidden="true" />
+        <span>{text}</span>
+      </span>
+    )
+  }
+  return (
+    <span
+      className="inline-flex items-center rounded-full"
+      style={{
+        padding: '3px 8px',
+        backgroundColor: 'var(--tg-secondary-bg)',
+        color: 'var(--tg-hint)',
+        fontSize: 11,
+        fontWeight: 500,
+        lineHeight: 1,
+      }}
+    >
+      {text}
+    </span>
+  )
+}
+
 function OfferCard({ listing }: { listing: Listing }) {
   const qty = useCartQuantity(listing.id)
   const style = getCategoryStyle(listing.category)
   const emoji = listing.emoji ?? style.emoji
   const max = listing.quantity
   const canIncrement = max === undefined || qty < max
+  const freshness = parseFreshness(listing.available_until)
 
   const inc = () => {
     if (!canIncrement) return
@@ -252,8 +287,13 @@ function OfferCard({ listing }: { listing: Listing }) {
         >
           {listing.title}
         </h3>
+        {freshness.text && (
+          <div className="mt-1">
+            <FreshnessBadge isToday={freshness.isToday} text={freshness.text} />
+          </div>
+        )}
         <p
-          className="font-bold mt-0.5 tabular-nums"
+          className="font-bold mt-1 tabular-nums"
           style={{ fontSize: 14, color: 'var(--tg-accent-text)' }}
         >
           {formatPrice(listing.price_per_unit, listing.currency, listing.unit)}

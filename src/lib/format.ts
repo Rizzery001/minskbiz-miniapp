@@ -27,3 +27,16 @@ export function pluralize(
   if (mod10 >= 2 && mod10 <= 4) return forms[1]
   return forms[2]
 }
+
+export function parseFreshness(
+  availableUntil?: string,
+): { isToday: boolean; text: string } {
+  if (!availableUntil) return { isToday: false, text: '' }
+  const trimmed = availableUntil.trim()
+  if (trimmed.length === 0) return { isToday: false, text: '' }
+  const TODAY = 'сегодня'
+  if (trimmed.toLowerCase().startsWith(TODAY)) {
+    return { isToday: true, text: 'Сегодня' + trimmed.slice(TODAY.length) }
+  }
+  return { isToday: false, text: trimmed }
+}

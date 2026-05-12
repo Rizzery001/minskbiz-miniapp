@@ -10,6 +10,7 @@ import {
 } from '../../lib/telegram'
 import FarmerSheet from './FarmerSheet'
 import LocateMeButton from './LocateMeButton'
+import SearchInput from './SearchInput'
 import { getCategoryStyle, normalizeCategory } from './categoryColors'
 
 const MINSK_CENTER: [number, number] = [53.9, 27.5667]
@@ -161,6 +162,8 @@ export default function FarmersMap() {
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null)
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getColorScheme)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
 
   const { data: user } = useUserMe()
 
@@ -185,6 +188,11 @@ export default function FarmersMap() {
     return () => window.clearTimeout(t)
   }, [view])
 
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQuery(searchQuery), 200)
+    return () => window.clearTimeout(t)
+  }, [searchQuery])
+
   const {
     data: listings,
     loading: listingsLoading,
@@ -198,12 +206,24 @@ export default function FarmersMap() {
 
   const visibleListings = useMemo(() => {
     if (!listings) return []
+    const q = debouncedQuery.trim().toLowerCase()
     return listings.filter((l) => {
       if (!isValidLatLng(l.location_lat, l.location_lng)) return false
-      if (selectedCategories.size === 0) return true
-      return selectedCategories.has(normalizeCategory(l.category))
+      if (
+        selectedCategories.size > 0 &&
+        !selectedCategories.has(normalizeCategory(l.category))
+      ) {
+        return false
+      }
+      if (q) {
+        const hit =
+          l.title.toLowerCase().includes(q) ||
+          l.seller_name.toLowerCase().includes(q)
+        if (!hit) return false
+      }
+      return true
     })
-  }, [listings, selectedCategories])
+  }, [listings, selectedCategories, debouncedQuery])
 
   const availableCategories = useMemo<string[]>(() => {
     if (!listings) return []
@@ -283,10 +303,15 @@ export default function FarmersMap() {
         style={{
           top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
           backgroundColor: 'var(--tg-bg)',
-          padding: '12px 12px',
+          padding: 12,
         }}
       >
-        <div className="flex items-center justify-between gap-2 px-1">
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="Найти товар..."
+        />
+        <div className="mt-2 flex items-center justify-between gap-2 px-1">
           <h2
             className="font-medium"
             style={{ fontSize: 15, color: 'var(--tg-text)' }}
@@ -339,6 +364,25 @@ export default function FarmersMap() {
           </div>
         )}
       </div>
+
+      {debouncedQuery.trim() !== '' &&
+        visibleListings.length === 0 &&
+        !listingsLoading &&
+        !listingsError && (
+          <div
+            className="tg-shadow-sm absolute left-1/2 -translate-x-1/2 z-[900] px-4 py-2 rounded-full text-center"
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 200px)',
+              maxWidth: 'calc(100% - 24px)',
+              backgroundColor: 'var(--tg-bg)',
+              color: 'var(--tg-text)',
+              fontSize: 13,
+              border: '1px solid var(--tg-hairline)',
+            }}
+          >
+            Ничего не найдено по запросу «{debouncedQuery.trim()}»
+          </div>
+        )}
 
       <LocateMeButton onLocate={handleLocate} />
 
