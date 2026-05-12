@@ -1,5 +1,6 @@
-import { NavLink } from 'react-router-dom'
+import { MapPin, ShoppingCart } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { NavLink } from 'react-router-dom'
 import { useCartCount } from '../lib/useCart'
 
 export default function BottomNav() {
@@ -7,17 +8,26 @@ export default function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-[1000] flex"
+      className="bottom-nav fixed inset-x-0 bottom-0 z-[1000] flex"
       style={{
-        height: 'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))',
+        height:
+          'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        backgroundColor: 'var(--tg-bg)',
-        boxShadow: '0 -1px 4px rgba(0,0,0,0.08)',
+        backgroundColor: 'var(--tg-bottom-bar-bg, var(--tg-bg))',
       }}
       aria-label="Нижняя навигация"
     >
-      <NavItem to="/farmers" label="Карта" icon={<MapPinIcon />} />
-      <NavItem to="/cart" label="Корзина" icon={<CartIcon />} badge={count} />
+      <NavItem
+        to="/farmers"
+        label="Карта"
+        icon={<MapPin size={24} strokeWidth={2} aria-hidden="true" />}
+      />
+      <NavItem
+        to="/cart"
+        label="Корзина"
+        icon={<ShoppingCart size={24} strokeWidth={2} aria-hidden="true" />}
+        badge={count}
+      />
     </nav>
   )
 }
@@ -33,7 +43,8 @@ function NavItem({ to, label, icon, badge }: NavItemProps) {
   return (
     <NavLink
       to={to}
-      className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-70"
+      className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-70 transition-opacity"
+      style={{ transitionDuration: '150ms' }}
     >
       {({ isActive }) => {
         const color = isActive ? 'var(--tg-link)' : 'var(--tg-hint)'
@@ -47,17 +58,19 @@ function NavItem({ to, label, icon, badge }: NavItemProps) {
                   style={{
                     position: 'absolute',
                     top: -4,
-                    right: -8,
-                    backgroundColor: '#ef4444',
+                    right: -10,
+                    minWidth: 18,
+                    height: 18,
+                    padding: '0 5px',
+                    borderRadius: 9,
+                    backgroundColor: '#ff3b30',
                     color: '#ffffff',
-                    fontSize: 10,
-                    fontWeight: 600,
-                    minWidth: 16,
-                    height: 16,
-                    padding: '0 4px',
-                    borderRadius: 8,
-                    lineHeight: '16px',
+                    fontSize: 11,
+                    fontWeight: 500,
+                    lineHeight: '18px',
                     textAlign: 'center',
+                    boxShadow:
+                      '0 0 0 2px var(--tg-bottom-bar-bg, var(--tg-bg))',
                     boxSizing: 'border-box',
                   }}
                 >
@@ -65,51 +78,18 @@ function NavItem({ to, label, icon, badge }: NavItemProps) {
                 </span>
               )}
             </div>
-            <span className="text-xs" style={{ color }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: isActive ? 500 : 400,
+                color,
+              }}
+            >
               {label}
             </span>
           </>
         )
       }}
     </NavLink>
-  )
-}
-
-function MapPinIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z" />
-      <circle cx="12" cy="10" r="3" />
-    </svg>
-  )
-}
-
-function CartIcon() {
-  return (
-    <svg
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx="9" cy="21" r="1" />
-      <circle cx="20" cy="21" r="1" />
-      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
-    </svg>
   )
 }

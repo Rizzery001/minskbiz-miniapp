@@ -1,3 +1,4 @@
+import { Locate, LoaderCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { hapticFeedback } from '../../lib/telegram'
 
@@ -50,37 +51,32 @@ export default function LocateMeButton({ onLocate }: Props) {
         onClick={handleClick}
         aria-label="Найти меня"
         aria-busy={loading}
-        className="absolute z-[1100] w-12 h-12 rounded-full flex items-center justify-center active:opacity-80"
+        className="tg-shadow-md absolute z-[1100] w-12 h-12 rounded-full flex items-center justify-center active:scale-[0.95] active:opacity-80 transition"
         style={{
           bottom: 16,
           right: 16,
           backgroundColor: 'var(--tg-bg)',
           color: 'var(--tg-text)',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
-          border: '1px solid var(--tg-secondary-bg)',
+          border: '1px solid var(--tg-hairline)',
+          transitionDuration: '150ms',
         }}
       >
         {loading ? (
-          <span
-            className="w-5 h-5 rounded-full border-2 border-current border-t-transparent animate-spin"
-            aria-hidden="true"
-          />
+          <LoaderCircle size={22} className="animate-spin" aria-hidden="true" />
         ) : (
-          <span className="text-xl leading-none" aria-hidden="true">
-            📍
-          </span>
+          <Locate size={22} aria-hidden="true" />
         )}
       </button>
       {toast && (
         <div
           role="status"
           aria-live="polite"
-          className="absolute left-1/2 -translate-x-1/2 z-[1200] px-4 py-2 rounded-full text-sm shadow-md"
+          className="tg-shadow-md absolute left-1/2 -translate-x-1/2 z-[1200] px-4 py-2 rounded-full text-[13px]"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 80px)',
+            top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
             backgroundColor: 'var(--tg-bg)',
             color: 'var(--tg-text)',
-            border: '1px solid var(--tg-secondary-bg)',
+            border: '1px solid var(--tg-hairline)',
           }}
         >
           {toast}

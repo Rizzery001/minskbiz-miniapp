@@ -1,3 +1,5 @@
+import { Info } from 'lucide-react'
+
 interface Props {
   text: string
 }
@@ -12,16 +14,19 @@ export default function DemoNotice({ text }: Props) {
       }}
     >
       <span
-        aria-hidden="true"
         className="shrink-0"
-        style={{ fontSize: 16, lineHeight: '20px' }}
+        style={{
+          color: 'var(--tg-link)',
+          lineHeight: '20px',
+          display: 'inline-flex',
+        }}
       >
-        ℹ️
+        <Info size={16} aria-hidden="true" />
       </span>
       <p
         style={{
           fontSize: 13,
-          color: 'var(--tg-hint)',
+          color: 'var(--tg-text)',
           lineHeight: 1.4,
           margin: 0,
         }}

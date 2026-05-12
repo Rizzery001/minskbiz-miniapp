@@ -24,17 +24,37 @@ const THEME_KEYS: Array<[keyof TelegramThemeParams, string]> = [
   ['button_color', '--tg-button'],
   ['button_text_color', '--tg-button-text'],
   ['secondary_bg_color', '--tg-secondary-bg'],
+  ['section_bg_color', '--tg-section-bg'],
+  ['header_bg_color', '--tg-header-bg'],
+  ['accent_text_color', '--tg-accent-text'],
+  ['destructive_text_color', '--tg-destructive-text'],
+  ['subtitle_text_color', '--tg-subtitle-text'],
+  ['bottom_bar_bg_color', '--tg-bottom-bar-bg'],
 ]
 
 export function applyTheme(): void {
+  if (typeof document === 'undefined') return
+  const root = document.documentElement
   const wa = tg()
+  const scheme: 'light' | 'dark' = wa?.colorScheme ?? 'light'
+  root.setAttribute('data-theme', scheme)
   if (!wa) return
   const params = wa.themeParams
-  const root = document.documentElement
   for (const [key, cssVar] of THEME_KEYS) {
     const value = params[key]
     if (value) root.style.setProperty(cssVar, value)
   }
+}
+
+export function getColorScheme(): 'light' | 'dark' {
+  return tg()?.colorScheme ?? 'light'
+}
+
+export function onThemeChanged(handler: () => void): () => void {
+  const wa = tg()
+  if (!wa) return () => {}
+  wa.onEvent('themeChanged', handler)
+  return () => wa.offEvent('themeChanged', handler)
 }
 
 export const mainButton = {

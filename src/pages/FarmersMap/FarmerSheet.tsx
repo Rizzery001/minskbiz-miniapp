@@ -1,3 +1,4 @@
+import { Minus, Plus, Store, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Listing } from '../../api/types'
 import {
@@ -16,7 +17,7 @@ interface Props {
   onClose: () => void
 }
 
-const ANIM_MS = 250
+const ANIM_MS = 200
 const SWIPE_CLOSE_THRESHOLD_PX = 100
 
 export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
@@ -106,11 +107,12 @@ export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label={`Профиль продавца ${seller.seller_name}`}
-        className="fixed inset-x-0 bottom-0 z-[1600] flex flex-col rounded-t-2xl shadow-2xl"
+        className="farmer-sheet tg-shadow-lg fixed inset-x-0 bottom-0 z-[1600] flex flex-col"
         style={{
-          backgroundColor: 'var(--tg-bg)',
           color: 'var(--tg-text)',
           maxHeight: '85vh',
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
           transform: sheetTransform,
           transition: useTransition ? `transform ${ANIM_MS}ms ease-out` : 'none',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -125,29 +127,47 @@ export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
         >
           <div className="flex justify-center pt-2 pb-1">
             <div
-              className="w-10 h-1 rounded-full"
-              style={{ backgroundColor: 'var(--tg-hint)', opacity: 0.5 }}
+              style={{
+                width: 36,
+                height: 4,
+                borderRadius: 2,
+                backgroundColor: 'var(--tg-hint)',
+                opacity: 0.3,
+              }}
             />
           </div>
-          <div className="flex items-start justify-between px-4 pb-3 pt-1 gap-3">
+          <div className="flex items-start gap-3 px-4 pt-2 pb-4">
+            <div
+              className="shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
+              style={{
+                backgroundColor: 'var(--tg-secondary-bg)',
+                color: 'var(--tg-hint)',
+              }}
+              aria-hidden="true"
+            >
+              <Store size={24} />
+            </div>
             <div className="min-w-0 flex-1">
-              <h2 className="text-lg font-semibold leading-tight truncate">
+              <h2
+                className="font-medium leading-tight truncate"
+                style={{ fontSize: 17 }}
+              >
                 {seller.seller_name}
               </h2>
               {seller.location_label && (
                 <p
-                  className="text-xs mt-0.5 truncate"
-                  style={{ color: 'var(--tg-hint)' }}
+                  className="mt-0.5 truncate"
+                  style={{ fontSize: 13, color: 'var(--tg-hint)' }}
                 >
-                  📍 {seller.location_label}
+                  {seller.location_label}
                 </p>
               )}
               {seller.available_until && (
                 <p
-                  className="text-xs mt-0.5 truncate"
-                  style={{ color: 'var(--tg-hint)' }}
+                  className="mt-0.5 truncate"
+                  style={{ fontSize: 13, color: 'var(--tg-accent-text)' }}
                 >
-                  ⏰ {seller.available_until}
+                  {seller.available_until}
                 </p>
               )}
             </div>
@@ -155,47 +175,35 @@ export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
               type="button"
               onClick={close}
               aria-label="Закрыть"
-              className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg leading-none"
+              className="shrink-0 rounded-full flex items-center justify-center active:opacity-60 active:scale-95 transition"
               style={{
+                width: 32,
+                height: 32,
                 backgroundColor: 'var(--tg-secondary-bg)',
                 color: 'var(--tg-text)',
+                transitionDuration: '150ms',
               }}
             >
-              ✕
+              <X size={20} />
             </button>
           </div>
+          <div
+            className="mx-4"
+            style={{ height: 1, backgroundColor: 'var(--tg-hairline)' }}
+          />
         </div>
 
         <div
-          className="overflow-y-auto px-4 pb-4 pt-1"
+          className="overflow-y-auto p-4 flex flex-col gap-3"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          <p
-            className="text-xs uppercase tracking-wide mb-2"
-            style={{ color: 'var(--tg-hint)' }}
-          >
-            {sellerListings.length}{' '}
-            {pluralizeOffers(sellerListings.length)}
-          </p>
-          <div className="flex flex-col gap-2">
-            {sellerListings.map((listing) => (
-              <OfferCard key={listing.id} listing={listing} />
-            ))}
-          </div>
+          {sellerListings.map((listing) => (
+            <OfferCard key={listing.id} listing={listing} />
+          ))}
         </div>
       </div>
     </>
   )
-}
-
-function pluralizeOffers(n: number): string {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'предложение'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) {
-    return 'предложения'
-  }
-  return 'предложений'
 }
 
 function OfferCard({ listing }: { listing: Listing }) {
@@ -221,63 +229,106 @@ function OfferCard({ listing }: { listing: Listing }) {
 
   return (
     <div
-      className="flex items-center gap-3 rounded-xl p-3"
-      style={{ backgroundColor: 'var(--tg-secondary-bg)' }}
+      className="farmer-offer-card flex items-center gap-3 rounded-xl p-3"
     >
       <div
-        className="shrink-0 w-12 h-12 rounded-lg flex items-center justify-center text-2xl"
-        style={{ backgroundColor: style.color + '33' }}
+        className="shrink-0 flex items-center justify-center"
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 12,
+          backgroundColor: style.color + '26',
+          fontSize: 24,
+          lineHeight: 1,
+        }}
         aria-hidden="true"
       >
         {emoji}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-medium leading-tight truncate">
+        <h3
+          className="font-medium leading-tight truncate"
+          style={{ fontSize: 15 }}
+        >
           {listing.title}
         </h3>
-        <p className="text-sm mt-0.5">
+        <p
+          className="font-bold mt-0.5 tabular-nums"
+          style={{ fontSize: 14, color: 'var(--tg-accent-text)' }}
+        >
           {formatPrice(listing.price_per_unit, listing.currency, listing.unit)}
         </p>
         {max !== undefined && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--tg-hint)' }}>
+          <p
+            className="mt-0.5"
+            style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+          >
             осталось {max} {listing.unit}
           </p>
         )}
       </div>
-      <div className="shrink-0 flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={dec}
-          disabled={qty === 0}
-          aria-label="Уменьшить"
-          className="w-8 h-8 rounded-full flex items-center justify-center text-lg leading-none active:opacity-70 disabled:opacity-30"
-          style={{
-            backgroundColor: 'var(--tg-bg)',
-            color: 'var(--tg-text)',
-            border: '1px solid var(--tg-hint)',
-          }}
-        >
-          −
-        </button>
-        <span
-          className="min-w-[1.5rem] text-center text-sm tabular-nums"
-          aria-live="polite"
-        >
-          {qty}
-        </span>
-        <button
-          type="button"
-          onClick={inc}
-          disabled={!canIncrement}
-          aria-label="Увеличить"
-          className="w-8 h-8 rounded-full flex items-center justify-center text-lg leading-none active:opacity-80 disabled:opacity-30"
-          style={{
-            backgroundColor: 'var(--tg-button)',
-            color: 'var(--tg-button-text)',
-          }}
-        >
-          +
-        </button>
+      <div className="shrink-0">
+        {qty === 0 ? (
+          <button
+            type="button"
+            onClick={inc}
+            disabled={!canIncrement}
+            className="flex items-center gap-1 rounded-lg active:opacity-80 active:scale-[0.97] disabled:opacity-40 transition"
+            style={{
+              height: 32,
+              padding: '0 12px',
+              backgroundColor: 'var(--tg-button)',
+              color: 'var(--tg-button-text)',
+              fontSize: 14,
+              fontWeight: 500,
+              transitionDuration: '150ms',
+            }}
+          >
+            <Plus size={16} strokeWidth={2} />
+            <span>Добавить</span>
+          </button>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={dec}
+              aria-label="Уменьшить"
+              className="flex items-center justify-center rounded-full active:opacity-70 active:scale-[0.95] transition"
+              style={{
+                width: 32,
+                height: 32,
+                backgroundColor: 'var(--tg-secondary-bg)',
+                color: 'var(--tg-text)',
+                transitionDuration: '150ms',
+              }}
+            >
+              <Minus size={16} strokeWidth={2} />
+            </button>
+            <span
+              className="text-center tabular-nums font-medium"
+              style={{ minWidth: 24, fontSize: 15 }}
+              aria-live="polite"
+            >
+              {qty}
+            </span>
+            <button
+              type="button"
+              onClick={inc}
+              disabled={!canIncrement}
+              aria-label="Увеличить"
+              className="flex items-center justify-center rounded-full active:opacity-80 active:scale-[0.95] disabled:opacity-30 transition"
+              style={{
+                width: 32,
+                height: 32,
+                backgroundColor: 'var(--tg-button)',
+                color: 'var(--tg-button-text)',
+                transitionDuration: '150ms',
+              }}
+            >
+              <Plus size={16} strokeWidth={2} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

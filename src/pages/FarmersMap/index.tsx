@@ -3,7 +3,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
-import { applyTheme, hapticFeedback, init as tgInit } from '../../lib/telegram'
+import {
+  getColorScheme,
+  hapticFeedback,
+  onThemeChanged,
+} from '../../lib/telegram'
 import FarmerSheet from './FarmerSheet'
 import LocateMeButton from './LocateMeButton'
 import { getCategoryStyle, normalizeCategory } from './categoryColors'
@@ -15,6 +19,12 @@ const MIN_RADIUS_KM = 1
 const MAX_RADIUS_KM = 200
 const DEBOUNCE_MS = 400
 
+const TILE_URLS: Record<'light' | 'dark', string> = {
+  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+  dark: 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png',
+}
+const TILE_ATTRIBUTION = '&copy; OpenStreetMap &copy; CARTO'
+
 function isValidLatLng(lat: unknown, lng: unknown): lat is number {
   return (
     typeof lat === 'number' && Number.isFinite(lat) &&
@@ -22,15 +32,25 @@ function isValidLatLng(lat: unknown, lng: unknown): lat is number {
   )
 }
 
-function makeMarkerIcon(color: string, emoji: string): L.DivIcon {
+function makeMarkerIcon(
+  color: string,
+  emoji: string,
+  active: boolean,
+  theme: 'light' | 'dark',
+): L.DivIcon {
   const safe = emoji.replace(/[<>&"']/g, '')
-  const html = `<div style="width:32px;height:32px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;">${safe}</div>`
+  const size = active ? 44 : 36
+  const fontSize = active ? 22 : 18
+  const borderColor = theme === 'dark' ? 'var(--tg-bg)' : '#ffffff'
+  const outline = active
+    ? 'box-shadow:0 0 0 3px var(--tg-link), 0 2px 6px rgba(0,0,0,0.25);'
+    : 'box-shadow:0 2px 4px rgba(0,0,0,0.15);'
+  const html = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid ${borderColor};${outline}display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;line-height:1;">${safe}</div>`
   return L.divIcon({
     html,
     className: 'farmer-marker',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -14],
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   })
 }
 
@@ -51,7 +71,6 @@ function ViewportTracker({ onChange }: ViewportTrackerProps) {
     const c = map.getCenter()
     const bounds = map.getBounds()
     const ne = bounds.getNorthEast()
-    // distance from center to NE corner = half-diagonal in meters
     const halfDiag = c.distanceTo(ne) / 1000
     const radius = Math.min(MAX_RADIUS_KM, Math.max(MIN_RADIUS_KM, Math.round(halfDiag)))
     if (isValidLatLng(c.lat, c.lng)) {
@@ -60,7 +79,6 @@ function ViewportTracker({ onChange }: ViewportTrackerProps) {
   }
 
   useEffect(() => {
-    // initial fire
     compute()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -91,12 +109,12 @@ export default function FarmersMap() {
   const [debouncedView, setDebouncedView] = useState<ViewState | null>(null)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
   const [mapInstance, setMapInstance] = useState<L.Map | null>(null)
+  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getColorScheme)
 
-  const { data: user, error: userError } = useUserMe()
+  const { data: user } = useUserMe()
 
   useEffect(() => {
-    tgInit()
-    applyTheme()
+    return onThemeChanged(() => setColorScheme(getColorScheme()))
   }, [])
 
   const userLocation = useMemo(() => {
@@ -110,7 +128,6 @@ export default function FarmersMap() {
     ? [userLocation.lat, userLocation.lng]
     : MINSK_CENTER
 
-  // Debounce view → debouncedView
   useEffect(() => {
     if (!view) return
     const t = window.setTimeout(() => setDebouncedView(view), DEBOUNCE_MS)
@@ -127,12 +144,6 @@ export default function FarmersMap() {
       ? { lat: debouncedView.lat, lng: debouncedView.lng, radius_km: debouncedView.radius_km }
       : null,
   )
-
-  useEffect(() => {
-    console.log('[FarmersMap] view:', view)
-    console.log('[FarmersMap] debouncedView:', debouncedView)
-    console.log('[FarmersMap] listings count:', listings?.length)
-  }, [view, debouncedView, listings])
 
   const visibleListings = useMemo(() => {
     if (!listings) return []
@@ -169,17 +180,6 @@ export default function FarmersMap() {
 
   const closeSheet = useCallback(() => setSelectedSellerId(null), [])
 
-  if (userError?.code === 'unauthorized') {
-    return (
-      <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: 'var(--tg-bg)' }}>
-        <ErrorState
-          title="Откройте через Telegram"
-          message="Для доступа к карте нужно открыть приложение из Telegram."
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="relative w-full h-full">
       <MapContainer
@@ -190,22 +190,26 @@ export default function FarmersMap() {
         scrollWheelZoom
         doubleClickZoom
         touchZoom
+        zoomControl={false}
         className="w-full h-full"
       >
         <TileLayer
-          attribution='&copy; OpenStreetMap'
-          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          key={colorScheme}
+          attribution={TILE_ATTRIBUTION}
+          url={TILE_URLS[colorScheme]}
         />
         <ViewportTracker onChange={setView} />
         <MapInstanceCapture onReady={setMapInstance} />
         {visibleListings.map((listing) => {
           const style = getCategoryStyle(listing.category)
           const emoji = listing.emoji ?? style.emoji
+          const isActive = listing.seller_id === selectedSellerId
           return (
             <Marker
               key={listing.id}
               position={[listing.location_lat, listing.location_lng]}
-              icon={makeMarkerIcon(style.color, emoji)}
+              icon={makeMarkerIcon(style.color, emoji, isActive, colorScheme)}
+              zIndexOffset={isActive ? 1000 : 0}
               eventHandlers={{
                 click: () => {
                   hapticFeedback.light()
@@ -217,25 +221,41 @@ export default function FarmersMap() {
         })}
       </MapContainer>
 
-      {/* Top status bar */}
+      {/* Floating status panel */}
       <div
-        className="absolute top-0 inset-x-0 z-[1000] px-3"
+        className="tg-shadow-md absolute z-[1000] left-3 right-3 rounded-xl"
         style={{
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 8px)',
-          background: 'linear-gradient(to bottom, var(--tg-bg) 0%, var(--tg-bg) 70%, transparent 100%)',
-          paddingBottom: 16,
+          top: 'calc(env(safe-area-inset-top, 0px) + 12px)',
+          backgroundColor: 'var(--tg-bg)',
+          padding: '12px 12px',
         }}
       >
-        <div className="flex items-center justify-between mb-2 px-1">
-          <span className="text-xs" style={{ color: 'var(--tg-hint)' }}>
-            {debouncedView ? `${debouncedView.radius_km} км` : '...'}
-          </span>
-          <span className="text-xs" style={{ color: 'var(--tg-hint)' }}>
-            {visibleListings.length} предложений
+        <div className="flex items-center justify-between gap-2 px-1">
+          <h2
+            className="font-medium"
+            style={{ fontSize: 15, color: 'var(--tg-text)' }}
+          >
+            Фермеры рядом
+          </h2>
+          <span
+            className="inline-flex items-center justify-center tabular-nums"
+            style={{
+              minWidth: 20,
+              height: 20,
+              padding: '0 6px',
+              borderRadius: 10,
+              backgroundColor: 'var(--tg-link)',
+              color: '#ffffff',
+              fontSize: 11,
+              fontWeight: 500,
+              lineHeight: 1,
+            }}
+          >
+            {visibleListings.length}
           </span>
         </div>
         {availableCategories.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto -mx-3 px-3 scrollbar-hide">
+          <div className="flex gap-2 overflow-x-auto -mx-3 px-3 mt-2 scrollbar-hide">
             {availableCategories.map((cat) => {
               const style = getCategoryStyle(cat)
               const active = selectedCategories.has(cat)
@@ -244,14 +264,18 @@ export default function FarmersMap() {
                   key={cat}
                   type="button"
                   onClick={() => toggleCategory(cat)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs whitespace-nowrap transition"
+                  className="flex items-center gap-1.5 rounded-full whitespace-nowrap active:opacity-70 active:scale-[0.97] transition"
                   style={{
-                    backgroundColor: active ? style.color : 'var(--tg-secondary-bg)',
-                    color: active ? '#fff' : 'var(--tg-text)',
-                    border: active ? 'none' : '1px solid transparent',
+                    padding: '6px 12px',
+                    backgroundColor: active ? 'var(--tg-link)' : 'var(--tg-secondary-bg)',
+                    color: active ? '#ffffff' : 'var(--tg-text)',
+                    fontSize: 13,
+                    transitionDuration: '150ms',
                   }}
                 >
-                  <span>{style.emoji}</span>
+                  <span style={{ fontSize: 14, lineHeight: 1 }} aria-hidden="true">
+                    {style.emoji}
+                  </span>
                   <span>{style.label}</span>
                 </button>
               )
@@ -264,11 +288,13 @@ export default function FarmersMap() {
 
       {listingsLoading && !listingsError && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 z-[900] px-4 py-2 rounded-full text-sm shadow-md"
+          className="tg-shadow-sm absolute left-1/2 -translate-x-1/2 z-[900] px-4 py-2 rounded-full"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 100px)',
+            top: 'calc(env(safe-area-inset-top, 0px) + 120px)',
             backgroundColor: 'var(--tg-bg)',
             color: 'var(--tg-text)',
+            fontSize: 13,
+            border: '1px solid var(--tg-hairline)',
           }}
         >
           Загрузка…
@@ -276,7 +302,10 @@ export default function FarmersMap() {
       )}
 
       {listingsError && listingsError.code !== 'unauthorized' && (
-        <div className="absolute bottom-4 inset-x-4 z-[1000] rounded-xl shadow-2xl" style={{ backgroundColor: 'var(--tg-bg)' }}>
+        <div
+          className="tg-shadow-lg absolute bottom-4 inset-x-4 z-[1000] rounded-xl"
+          style={{ backgroundColor: 'var(--tg-bg)' }}
+        >
           <ErrorState
             title="Не удалось загрузить"
             message={listingsError.message}

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Minus, Plus, ShoppingCart, Store, Trash2 } from 'lucide-react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, apiPost } from '../../api/client'
+import DemoNotice from '../../components/DemoNotice'
 import {
   type CartItem,
   clearCart,
@@ -10,7 +12,6 @@ import {
 import { formatPrice, pluralize } from '../../lib/format'
 import { hapticFeedback, mainButton } from '../../lib/telegram'
 import { useCart } from '../../lib/useCart'
-import DemoNotice from '../../components/DemoNotice'
 import { getCategoryStyle } from '../FarmersMap/categoryColors'
 import type { OrderResult } from './types'
 
@@ -87,7 +88,6 @@ export default function Cart() {
     }
   }, [cart, submitting, navigate])
 
-  // MainButton text + visibility
   useEffect(() => {
     if (cart.length === 0) {
       mainButton.hide()
@@ -110,13 +110,11 @@ export default function Cart() {
     mainButton.show()
   }, [cart.length, submitting])
 
-  // MainButton click wiring
   useEffect(() => {
     mainButton.onClick(handleSubmit)
     return () => mainButton.offClick(handleSubmit)
   }, [handleSubmit])
 
-  // Hide on unmount
   useEffect(() => {
     return () => {
       mainButton.hide()
@@ -138,7 +136,12 @@ export default function Cart() {
       style={{ backgroundColor: 'var(--tg-bg)', color: 'var(--tg-text)' }}
     >
       <div className="px-4 pt-4 pb-6">
-        <h1 className="text-2xl font-semibold mb-4">Корзина</h1>
+        <h1
+          className="font-semibold mb-4"
+          style={{ fontSize: 22, lineHeight: 1.2 }}
+        >
+          Корзина
+        </h1>
         {cart.length === 0 ? (
           <EmptyState />
         ) : (
@@ -148,19 +151,11 @@ export default function Cart() {
                 <SellerGroup key={sellerId} items={items} />
               ))}
             </div>
-            <div
-              className="mt-6 rounded-xl p-4"
-              style={{ backgroundColor: 'var(--tg-secondary-bg)' }}
-            >
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm">Всего:</span>
-                <span className="text-base font-semibold tabular-nums">
-                  {grandTotal.toFixed(2)} BYN
-                </span>
-              </div>
-              <div className="text-xs" style={{ color: 'var(--tg-hint)' }}>
-                Заказов будет создано: {cart.length}
-              </div>
+            <div className="mt-4">
+              <GrandTotalCard
+                grandTotal={grandTotal}
+                orderCount={cart.length}
+              />
             </div>
             <div className="mt-4">
               <DemoNotice text="Это тестовый режим. Заказ создаётся в системе, но реальный продавец уведомление пока не получит." />
@@ -168,13 +163,16 @@ export default function Cart() {
             <button
               type="button"
               onClick={handleClear}
-              className="w-full mt-4 py-3 rounded-lg text-sm active:opacity-70"
+              className="w-full mt-2 py-3 rounded-lg font-medium flex items-center justify-center gap-2 active:opacity-60 transition"
               style={{
-                backgroundColor: 'var(--tg-secondary-bg)',
-                color: 'var(--tg-text)',
+                backgroundColor: 'transparent',
+                color: 'var(--tg-destructive-text, #ff3b30)',
+                fontSize: 14,
+                transitionDuration: '150ms',
               }}
             >
-              Очистить корзину
+              <Trash2 size={16} strokeWidth={2} />
+              <span>Очистить корзину</span>
             </button>
           </>
         )}
@@ -185,20 +183,31 @@ export default function Cart() {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center justify-center text-center py-16">
-      <div className="text-6xl mb-3" aria-hidden="true">
-        🛒
-      </div>
-      <h2 className="text-lg font-semibold mb-1">Корзина пуста</h2>
-      <p className="text-sm mb-5" style={{ color: 'var(--tg-hint)' }}>
+    <div className="flex flex-col items-center justify-center text-center py-12">
+      <ShoppingCart
+        size={64}
+        strokeWidth={1.5}
+        style={{ color: 'var(--tg-hint)' }}
+        aria-hidden="true"
+      />
+      <h2 className="font-medium mt-4 mb-1" style={{ fontSize: 17 }}>
+        Корзина пуста
+      </h2>
+      <p
+        className="mb-5"
+        style={{ fontSize: 14, color: 'var(--tg-hint)' }}
+      >
         Добавь товары на карте
       </p>
       <Link
         to="/farmers"
-        className="px-5 py-2.5 rounded-lg text-sm font-medium active:opacity-80"
+        className="rounded-lg font-medium active:opacity-70 active:scale-[0.97] transition"
         style={{
-          backgroundColor: 'var(--tg-button)',
-          color: 'var(--tg-button-text)',
+          padding: '10px 20px',
+          backgroundColor: 'var(--tg-secondary-bg)',
+          color: 'var(--tg-text)',
+          fontSize: 14,
+          transitionDuration: '150ms',
         }}
       >
         К карте
@@ -207,50 +216,111 @@ function EmptyState() {
   )
 }
 
+function GrandTotalCard({
+  grandTotal,
+  orderCount,
+}: {
+  grandTotal: number
+  orderCount: number
+}) {
+  return (
+    <div
+      className="tg-shadow-sm rounded-xl"
+      style={{
+        backgroundColor: 'var(--tg-section-bg, var(--tg-bg))',
+        padding: 16,
+      }}
+    >
+      <div className="flex items-baseline justify-between">
+        <span style={{ fontSize: 14, color: 'var(--tg-hint)' }}>Всего</span>
+        <span
+          className="font-medium tabular-nums"
+          style={{ fontSize: 17, color: 'var(--tg-accent-text)' }}
+        >
+          {grandTotal.toFixed(2)} BYN
+        </span>
+      </div>
+      <p
+        className="mt-1"
+        style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+      >
+        К оформлению: {orderCount}{' '}
+        {pluralize(orderCount, ['заказ', 'заказа', 'заказов'])}
+      </p>
+    </div>
+  )
+}
+
 function SellerGroup({ items }: { items: CartItem[] }) {
   const first = items[0]
   if (!first) return null
-  const { seller_name, location_label, available_until } = first.listing_snapshot
+  const { seller_name, location_label } = first.listing_snapshot
   let groupTotal = 0
   for (const i of items) groupTotal += i.quantity * i.listing_snapshot.price_per_unit
   const currency = first.listing_snapshot.currency
 
   return (
     <section
-      className="rounded-xl p-3"
-      style={{ backgroundColor: 'var(--tg-secondary-bg)' }}
+      className="tg-shadow-sm rounded-xl"
+      style={{
+        backgroundColor: 'var(--tg-section-bg, var(--tg-bg))',
+        padding: 16,
+      }}
     >
-      <header className="mb-2 px-1">
-        <h2 className="text-sm font-semibold leading-tight">{seller_name}</h2>
-        {location_label && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--tg-hint)' }}>
-            📍 {location_label}
-          </p>
-        )}
-        {available_until && (
-          <p className="text-xs mt-0.5" style={{ color: 'var(--tg-hint)' }}>
-            ⏰ {available_until}
-          </p>
-        )}
+      <header className="flex items-start gap-3 mb-3">
+        <div
+          className="shrink-0 rounded-full flex items-center justify-center"
+          style={{
+            width: 40,
+            height: 40,
+            backgroundColor: 'var(--tg-secondary-bg)',
+            color: 'var(--tg-hint)',
+          }}
+          aria-hidden="true"
+        >
+          <Store size={20} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2
+            className="font-medium leading-tight truncate"
+            style={{ fontSize: 15 }}
+          >
+            {seller_name}
+          </h2>
+          {location_label && (
+            <p
+              className="mt-0.5 truncate"
+              style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+            >
+              {location_label}
+            </p>
+          )}
+        </div>
       </header>
-      <div className="flex flex-col gap-2">
-        {items.map((item) => (
-          <CartRow key={item.listing_id} item={item} />
+      <div>
+        {items.map((item, idx) => (
+          <Fragment key={item.listing_id}>
+            {idx > 0 && (
+              <div
+                style={{ height: 1, backgroundColor: 'var(--tg-hairline)' }}
+              />
+            )}
+            <CartRow item={item} />
+          </Fragment>
         ))}
       </div>
       <div
-        className="mt-3 pt-2 flex justify-between items-center text-sm"
-        style={{ borderTop: '1px solid var(--tg-bg)' }}
+        className="flex items-center justify-between mt-2 pt-3"
+        style={{ borderTop: '1px solid var(--tg-hairline)' }}
       >
-        <span>Итого:</span>
-        <span className="font-semibold tabular-nums">
+        <span style={{ fontSize: 14, color: 'var(--tg-hint)' }}>Итого:</span>
+        <span
+          className="font-medium tabular-nums"
+          style={{ fontSize: 14, color: 'var(--tg-accent-text)' }}
+        >
           {groupTotal.toFixed(2)} {currency}
         </span>
       </div>
-      <p className="text-xs mt-1" style={{ color: 'var(--tg-hint)' }}>
-        К оформлению этому продавцу: {items.length}{' '}
-        {pluralize(items.length, ['заказ', 'заказа', 'заказов'])}
-      </p>
     </section>
   )
 }
@@ -279,41 +349,56 @@ function CartRow({ item }: { item: CartItem }) {
   }
 
   return (
-    <div
-      className="flex items-start gap-2 rounded-lg p-2"
-      style={{ backgroundColor: 'var(--tg-bg)' }}
-    >
+    <div className="flex items-center gap-3 py-3">
       <div
-        className="shrink-0 w-10 h-10 rounded-md flex items-center justify-center text-xl"
-        style={{ backgroundColor: style.color + '33' }}
+        className="shrink-0 flex items-center justify-center"
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          backgroundColor: style.color + '26',
+          fontSize: 22,
+          lineHeight: 1,
+        }}
         aria-hidden="true"
       >
         {emoji}
       </div>
       <div className="min-w-0 flex-1">
-        <h3 className="text-sm font-medium leading-tight truncate">{l.title}</h3>
-        <p className="text-xs" style={{ color: 'var(--tg-hint)' }}>
-          {formatPrice(l.price_per_unit, l.currency, l.unit)}
-        </p>
-        <p className="text-xs mt-0.5 tabular-nums" style={{ color: 'var(--tg-hint)' }}>
-          × {qty} = {rowTotal.toFixed(2)} {l.currency}
+        <h3
+          className="font-medium leading-tight truncate"
+          style={{ fontSize: 14 }}
+        >
+          {l.title}
+        </h3>
+        <p
+          className="mt-0.5 tabular-nums"
+          style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+        >
+          {formatPrice(l.price_per_unit, l.currency, l.unit)} · {rowTotal.toFixed(2)} {l.currency}
         </p>
       </div>
-      <div className="shrink-0 flex items-center gap-1.5 pt-1">
+      <div className="shrink-0 flex items-center gap-1">
         <button
           type="button"
           onClick={dec}
           aria-label="Уменьшить"
-          className="w-7 h-7 rounded-full flex items-center justify-center text-base leading-none active:opacity-70"
+          className="rounded-full flex items-center justify-center active:opacity-70 active:scale-[0.95] transition"
           style={{
+            width: 32,
+            height: 32,
             backgroundColor: 'var(--tg-secondary-bg)',
             color: 'var(--tg-text)',
-            border: '1px solid var(--tg-hint)',
+            transitionDuration: '150ms',
           }}
         >
-          −
+          <Minus size={16} strokeWidth={2} />
         </button>
-        <span className="min-w-[1.5rem] text-center text-sm tabular-nums">
+        <span
+          className="text-center tabular-nums font-medium"
+          style={{ minWidth: 24, fontSize: 15 }}
+          aria-live="polite"
+        >
           {qty}
         </span>
         <button
@@ -321,13 +406,16 @@ function CartRow({ item }: { item: CartItem }) {
           onClick={inc}
           disabled={!canInc}
           aria-label="Увеличить"
-          className="w-7 h-7 rounded-full flex items-center justify-center text-base leading-none active:opacity-80 disabled:opacity-30"
+          className="rounded-full flex items-center justify-center active:opacity-80 active:scale-[0.95] disabled:opacity-30 transition"
           style={{
+            width: 32,
+            height: 32,
             backgroundColor: 'var(--tg-button)',
             color: 'var(--tg-button-text)',
+            transitionDuration: '150ms',
           }}
         >
-          +
+          <Plus size={16} strokeWidth={2} />
         </button>
       </div>
     </div>

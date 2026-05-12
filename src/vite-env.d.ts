@@ -31,7 +31,21 @@ interface TelegramThemeParams {
   button_color?: string
   button_text_color?: string
   secondary_bg_color?: string
+  section_bg_color?: string
+  header_bg_color?: string
+  accent_text_color?: string
+  destructive_text_color?: string
+  subtitle_text_color?: string
+  bottom_bar_bg_color?: string
+  section_header_text_color?: string
+  section_separator_color?: string
 }
+
+type TelegramEvent =
+  | 'themeChanged'
+  | 'viewportChanged'
+  | 'mainButtonClicked'
+  | 'backButtonClicked'
 
 interface TelegramWebApp {
   initData: string
@@ -41,6 +55,8 @@ interface TelegramWebApp {
   expand(): void
   close(): void
   sendData(data: string): void
+  onEvent(event: TelegramEvent, handler: () => void): void
+  offEvent(event: TelegramEvent, handler: () => void): void
   MainButton: TelegramMainButton
   BackButton: TelegramBackButton
   HapticFeedback: TelegramHapticFeedback

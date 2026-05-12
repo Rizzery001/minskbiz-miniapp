@@ -3,14 +3,40 @@
 @tailwind utilities;
 
 :root {
+  /* Telegram palette — overridden by applyTheme() */
   --tg-bg: #ffffff;
   --tg-text: #000000;
-  --tg-hint: #999999;
+  --tg-hint: #8e8e93;
   --tg-link: #2481cc;
   --tg-button: #2481cc;
   --tg-button-text: #ffffff;
-  --tg-secondary-bg: #f1f1f1;
+  --tg-secondary-bg: #f1f1f4;
+  --tg-section-bg: #ffffff;
+  --tg-header-bg: #ffffff;
+  --tg-accent-text: #2481cc;
+  --tg-destructive-text: #ff3b30;
+  --tg-subtitle-text: #8e8e93;
+  --tg-bottom-bar-bg: #ffffff;
+
+  /* layout */
   --bottom-nav-height: 56px;
+
+  /* semantic tokens */
+  --tg-hairline: rgba(0, 0, 0, 0.06);
+  --tg-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 1px rgba(0, 0, 0, 0.02);
+  --tg-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --tg-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
+  --tg-sheet-bg: var(--tg-bg);
+  --tg-sheet-card-bg: var(--tg-section-bg);
+}
+
+[data-theme='dark'] {
+  --tg-hairline: rgba(255, 255, 255, 0.06);
+  --tg-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 1px 1px rgba(0, 0, 0, 0.2);
+  --tg-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --tg-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+  --tg-sheet-bg: var(--tg-secondary-bg);
+  --tg-sheet-card-bg: var(--tg-bg);
 }
 
 html,
@@ -24,11 +50,18 @@ body,
   font-family:
     -apple-system,
     BlinkMacSystemFont,
+    'SF Pro Text',
     'Segoe UI',
     Roboto,
-    'Helvetica Neue',
+    Helvetica,
+    Arial,
     sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  font-family: inherit;
 }
 
 .leaflet-container {
@@ -38,19 +71,19 @@ body,
   background: var(--tg-secondary-bg);
 }
 
-.leaflet-popup-content-wrapper {
-  border-radius: 12px;
-  padding: 6px;
-  background-color: var(--tg-bg);
-  color: var(--tg-text);
+.leaflet-control-attribution {
+  background: rgba(255, 255, 255, 0.7) !important;
+  color: #333 !important;
+  font-size: 10px !important;
 }
 
-.leaflet-popup-content {
-  margin: 8px;
+[data-theme='dark'] .leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.5) !important;
+  color: #ccc !important;
 }
 
-.leaflet-popup-tip {
-  background-color: var(--tg-bg);
+[data-theme='dark'] .leaflet-control-attribution a {
+  color: #ccc !important;
 }
 
 .farmer-marker {
@@ -64,4 +97,42 @@ body,
 }
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
+}
+
+/* semantic helpers */
+.tg-shadow-sm {
+  box-shadow: var(--tg-shadow-sm);
+}
+.tg-shadow-md {
+  box-shadow: var(--tg-shadow-md);
+}
+.tg-shadow-lg {
+  box-shadow: var(--tg-shadow-lg);
+}
+
+/* bottom nav border + theme-dependent shadow */
+.bottom-nav {
+  border-top: 1px solid var(--tg-hairline);
+  box-shadow: 0 -1px 4px rgba(0, 0, 0, 0.06);
+}
+[data-theme='dark'] .bottom-nav {
+  box-shadow: none;
+}
+
+/* demo banner theme colors */
+.demo-banner {
+  background: #fef3c7;
+  color: #92400e;
+}
+[data-theme='dark'] .demo-banner {
+  background: #422006;
+  color: #fde68a;
+}
+
+/* sheet theme */
+.farmer-sheet {
+  background: var(--tg-sheet-bg);
+}
+.farmer-offer-card {
+  background: var(--tg-sheet-card-bg);
 }

@@ -1,8 +1,14 @@
+import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useUserMe } from './api/hooks'
 import BottomNav from './components/BottomNav'
 import DemoBanner from './components/DemoBanner'
 import ErrorState from './components/ErrorState'
+import {
+  applyTheme,
+  init as tgInit,
+  onThemeChanged,
+} from './lib/telegram'
 import Cart from './pages/Cart'
 import FarmersMap from './pages/FarmersMap'
 import OrderSuccess from './pages/OrderSuccess'
@@ -29,6 +35,12 @@ function Layout() {
 
 export default function App() {
   const { error } = useUserMe()
+
+  useEffect(() => {
+    tgInit()
+    applyTheme()
+    return onThemeChanged(applyTheme)
+  }, [])
 
   if (error?.code === 'unauthorized') {
     return (
