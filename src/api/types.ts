@@ -8,7 +8,7 @@ export interface UserMe {
   vertical?: string
   subtype?: string
   language?: string
-  location?: Coordinates
+  location?: Coordinates | null
 }
 
 export interface Listing {
