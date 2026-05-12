@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
@@ -32,10 +32,13 @@ function makeMarkerIcon(color: string, emoji: string): L.DivIcon {
 
 function MapCenterUpdater({ center }: { center: [number, number] }) {
   const map = useMap()
+  const prevRef = useRef<[number, number] | null>(null)
   useEffect(() => {
-    if (isValidLatLng(center[0], center[1])) {
-      map.setView(center)
-    }
+    if (!isValidLatLng(center[0], center[1])) return
+    const prev = prevRef.current
+    if (prev && prev[0] === center[0] && prev[1] === center[1]) return
+    prevRef.current = center
+    map.setView(center, map.getZoom())
   }, [center, map])
   return null
 }
@@ -62,14 +65,17 @@ export default function FarmersMap() {
     ? [userLocation.lat, userLocation.lng]
     : MINSK_CENTER
 
+  const queryLat = userLocation ? userLocation.lat : MINSK_CENTER[0]
+  const queryLng = userLocation ? userLocation.lng : MINSK_CENTER[1]
+
   const {
     data: listings,
     loading: listingsLoading,
     error: listingsError,
     refetch: refetchListings,
   } = useListings({
-    lat: userLocation?.lat,
-    lng: userLocation?.lng,
+    lat: queryLat,
+    lng: queryLng,
     radius_km: radiusKm,
   })
 
@@ -77,8 +83,9 @@ export default function FarmersMap() {
     console.log('[FarmersMap] user:', user)
     console.log('[FarmersMap] userLocation:', userLocation)
     console.log('[FarmersMap] center:', center)
+    console.log('[FarmersMap] radiusKm:', radiusKm)
     console.log('[FarmersMap] listings count:', listings?.length)
-  }, [user, userLocation, listings])
+  }, [user, userLocation, listings, radiusKm])
 
   const visibleListings = useMemo(() => {
     if (!listings) return []
@@ -120,8 +127,12 @@ export default function FarmersMap() {
     <div className="relative w-full h-full" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
       <MapContainer
         center={center}
-        zoom={11}
-        zoomControl={false}
+        zoom={10}
+        minZoom={6}
+        maxZoom={18}
+        scrollWheelZoom
+        doubleClickZoom
+        touchZoom
         className="w-full h-full"
       >
         <TileLayer
