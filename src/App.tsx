@@ -1,6 +1,7 @@
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useUserMe } from './api/hooks'
 import BottomNav from './components/BottomNav'
+import DemoBanner from './components/DemoBanner'
 import ErrorState from './components/ErrorState'
 import Cart from './pages/Cart'
 import FarmersMap from './pages/FarmersMap'
@@ -10,13 +11,16 @@ function Layout() {
   return (
     <>
       <div
-        className="h-full"
+        className="h-full flex flex-col"
         style={{
           paddingBottom:
             'calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px))',
         }}
       >
-        <Outlet />
+        <DemoBanner />
+        <div className="flex-1 min-h-0">
+          <Outlet />
+        </div>
       </div>
       <BottomNav />
     </>

@@ -10,6 +10,7 @@ import {
 import { formatPrice, pluralize } from '../../lib/format'
 import { hapticFeedback, mainButton } from '../../lib/telegram'
 import { useCart } from '../../lib/useCart'
+import DemoNotice from '../../components/DemoNotice'
 import { getCategoryStyle } from '../FarmersMap/categoryColors'
 import type { OrderResult } from './types'
 
@@ -160,6 +161,9 @@ export default function Cart() {
               <div className="text-xs" style={{ color: 'var(--tg-hint)' }}>
                 Заказов будет создано: {cart.length}
               </div>
+            </div>
+            <div className="mt-4">
+              <DemoNotice text="Это тестовый режим. Заказ создаётся в системе, но реальный продавец уведомление пока не получит." />
             </div>
             <button
               type="button"

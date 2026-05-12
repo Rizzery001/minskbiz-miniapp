@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
+import DemoNotice from '../../components/DemoNotice'
 import { backButton } from '../../lib/telegram'
 import type { OrderResult } from '../Cart/types'
 
@@ -115,7 +116,11 @@ export default function OrderSuccess() {
           </>
         )}
 
-        <div className="flex flex-col gap-2 mt-6">
+        <div className="mt-6">
+          <DemoNotice text="Это тестовый режим. Реальный продавец уведомление пока не получает. Когда подключим живых фермеров — заказы будут отправляться им автоматически." />
+        </div>
+
+        <div className="flex flex-col gap-2 mt-4">
           {!allOk && (
             <button
               type="button"
