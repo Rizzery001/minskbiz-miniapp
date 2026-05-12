@@ -20,10 +20,11 @@ const MAX_RADIUS_KM = 200
 const DEBOUNCE_MS = 400
 
 const TILE_URLS: Record<'light' | 'dark', string> = {
-  light: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-  dark: 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png',
+  light: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?lang=ru',
+  dark: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?lang=ru',
 }
-const TILE_ATTRIBUTION = '&copy; OpenStreetMap &copy; CARTO'
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
 
 function isValidLatLng(lat: unknown, lng: unknown): lat is number {
   return (
