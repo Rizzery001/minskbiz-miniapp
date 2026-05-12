@@ -119,6 +119,9 @@ function MapSizeFixer({ initialCenter, recenterZoom }: MapSizeFixerProps) {
   useEffect(() => {
     const container = map.getContainer()
     const handleResize = () => map.invalidateSize()
+    const handleDblClick = (e: L.LeafletMouseEvent) => {
+      map.flyTo(e.latlng, map.getZoom() + 1.5, { duration: 0.3 })
+    }
 
     const rafId = window.requestAnimationFrame(() => {
       map.invalidateSize()
@@ -136,10 +139,15 @@ function MapSizeFixer({ initialCenter, recenterZoom }: MapSizeFixerProps) {
     }
     window.addEventListener('resize', handleResize)
 
+    map.doubleClickZoom.disable()
+    map.on('dblclick', handleDblClick)
+
     return () => {
       window.cancelAnimationFrame(rafId)
       observer?.disconnect()
       window.removeEventListener('resize', handleResize)
+      map.off('dblclick', handleDblClick)
+      map.doubleClickZoom.enable()
     }
   }, [map])
 
@@ -231,9 +239,11 @@ export default function FarmersMap() {
         minZoom={6}
         maxZoom={18}
         zoomSnap={0}
-        zoomDelta={0.25}
+        wheelPxPerZoomLevel={60}
+        zoomAnimationThreshold={4}
+        fadeAnimation={true}
+        markerZoomAnimation={true}
         scrollWheelZoom
-        doubleClickZoom
         touchZoom
         zoomControl={false}
         className="w-full h-full"
