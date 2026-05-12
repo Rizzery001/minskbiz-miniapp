@@ -30,12 +30,14 @@ const STYLES: Record<string, CategoryStyle> = {
   яйца: { color: '#facc15', emoji: '🥚', label: 'Яйца' },
   fish: { color: '#06b6d4', emoji: '🐟', label: 'Рыба' },
   рыба: { color: '#06b6d4', emoji: '🐟', label: 'Рыба' },
+  flour: { color: '#d97706', emoji: '🌾', label: 'Мука' },
+  мука: { color: '#d97706', emoji: '🌾', label: 'Мука' },
   other: FALLBACK_STYLE,
-  неизвестное: FALLBACK_STYLE,
+  другое: FALLBACK_STYLE,
 }
 
 export function normalizeCategory(category: string): string {
-  return category.toLowerCase().trim()
+  return (category ?? '').toLowerCase().trim()
 }
 
 export function getCategoryStyle(category: string): CategoryStyle {
