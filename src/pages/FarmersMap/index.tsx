@@ -188,6 +188,8 @@ export default function FarmersMap() {
         zoom={INITIAL_ZOOM}
         minZoom={6}
         maxZoom={18}
+        zoomSnap={0}
+        zoomDelta={0.25}
         scrollWheelZoom
         doubleClickZoom
         touchZoom
