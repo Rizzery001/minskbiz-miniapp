@@ -12,6 +12,7 @@ import {
 import Cart from './pages/Cart'
 import FarmersMap from './pages/FarmersMap'
 import OrderSuccess from './pages/OrderSuccess'
+import Orders from './pages/Orders'
 
 function Layout() {
   return (
@@ -24,7 +25,7 @@ function Layout() {
         }}
       >
         <DemoBanner />
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <Outlet />
         </div>
       </div>
@@ -62,6 +63,7 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/farmers" element={<FarmersMap />} />
         <Route path="/cart" element={<Cart />} />
+        <Route path="/orders" element={<Orders />} />
         <Route path="/orders/success" element={<OrderSuccess />} />
       </Route>
       <Route path="*" element={<Navigate to="/farmers" replace />} />

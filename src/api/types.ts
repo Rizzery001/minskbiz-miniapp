@@ -34,3 +34,23 @@ export interface ListingsResponse {
   count: number
   items: Listing[]
 }
+
+export type OrderStatus = 'new' | 'confirmed' | 'delivered' | 'cancelled' | string
+
+export interface Order {
+  id: string
+  created_at: string
+  updated_at?: string
+  status: OrderStatus
+  listing_snapshot: Listing
+  quantity_requested: number
+  unit?: string
+  estimated_total?: number | null
+  pickup_when?: string | null
+  comment?: string | null
+}
+
+export interface OrdersResponse {
+  count: number
+  items: Order[]
+}

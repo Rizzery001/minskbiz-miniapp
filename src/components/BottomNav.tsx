@@ -1,4 +1,4 @@
-import { MapPin, ShoppingCart } from 'lucide-react'
+import { MapPin, Package, ShoppingCart } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useCartCount } from '../lib/useCart'
@@ -28,6 +28,11 @@ export default function BottomNav() {
         icon={<ShoppingCart size={24} strokeWidth={2} aria-hidden="true" />}
         badge={count}
       />
+      <NavItem
+        to="/orders"
+        label="Заказы"
+        icon={<Package size={24} strokeWidth={2} aria-hidden="true" />}
+      />
     </nav>
   )
 }
@@ -43,6 +48,7 @@ function NavItem({ to, label, icon, badge }: NavItemProps) {
   return (
     <NavLink
       to={to}
+      end={to === '/orders' ? false : undefined}
       className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-70 transition-opacity"
       style={{ transitionDuration: '150ms' }}
     >
