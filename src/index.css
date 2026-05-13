@@ -146,6 +146,13 @@ button {
   opacity: 1;
 }
 
+/* deep-link focus highlight on offer card */
+.offer-highlighted {
+  outline: 3px solid var(--tg-link);
+  outline-offset: 4px;
+  transition: outline 0.3s ease;
+}
+
 /* freshness badge — "today" theme variant */
 .badge-today {
   background: rgba(16, 185, 129, 0.15);
