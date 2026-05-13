@@ -15,12 +15,21 @@ interface Props {
   sellerId: string
   listings: Listing[]
   onClose: () => void
+  focusedOfferId?: string | null
+  onFocusHandled?: () => void
 }
 
 const ANIM_MS = 200
 const SWIPE_CLOSE_THRESHOLD_PX = 100
+const HIGHLIGHT_MS = 2000
 
-export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
+export default function FarmerSheet({
+  sellerId,
+  listings,
+  onClose,
+  focusedOfferId,
+  onFocusHandled,
+}: Props) {
   const sellerListings = useMemo(
     () => listings.filter((l) => l.seller_id === sellerId),
     [listings, sellerId],
@@ -83,6 +92,22 @@ export default function FarmerSheet({ sellerId, listings, onClose }: Props) {
       setDragY(0)
     }
   }
+
+  useEffect(() => {
+    if (!mounted) return
+    if (!focusedOfferId) return
+    const match = sellerListings.find((l) => l.id === focusedOfferId)
+    if (!match) return
+    const element = document.getElementById(`offer-${focusedOfferId}`)
+    if (!element) return
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    element.classList.add('offer-highlighted')
+    const t = window.setTimeout(() => {
+      element.classList.remove('offer-highlighted')
+      onFocusHandled?.()
+    }, HIGHLIGHT_MS)
+    return () => window.clearTimeout(t)
+  }, [mounted, focusedOfferId, sellerListings, onFocusHandled])
 
   if (!seller) return null
 
@@ -264,6 +289,7 @@ function OfferCard({ listing }: { listing: Listing }) {
 
   return (
     <div
+      id={`offer-${listing.id}`}
       className="farmer-offer-card flex items-center gap-3 rounded-xl p-3"
     >
       <div

@@ -155,6 +155,8 @@ function MapSizeFixer({ initialCenter, recenterZoom }: MapSizeFixerProps) {
   return null
 }
 
+const FOCUS_ZOOM = 14
+
 export default function FarmersMap() {
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
   const [view, setView] = useState<ViewState | null>(null)
@@ -164,6 +166,16 @@ export default function FarmersMap() {
   const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getColorScheme)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [focusedOfferId, setFocusedOfferId] = useState<string | null>(null)
+  const focusHandledRef = useRef(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const targetOfferId = params.get('offer')
+    if (targetOfferId) {
+      setFocusedOfferId(targetOfferId)
+    }
+  }, [])
 
   const { data: user } = useUserMe()
 
@@ -250,6 +262,24 @@ export default function FarmersMap() {
   )
 
   const closeSheet = useCallback(() => setSelectedSellerId(null), [])
+
+  useEffect(() => {
+    if (focusHandledRef.current) return
+    if (!focusedOfferId) return
+    if (!listings || listings.length === 0) return
+    const target = listings.find((l) => l.id === focusedOfferId)
+    if (!target) return
+    focusHandledRef.current = true
+    if (mapInstance && isValidLatLng(target.location_lat, target.location_lng)) {
+      mapInstance.flyTo([target.location_lat, target.location_lng], FOCUS_ZOOM)
+    }
+    setSelectedSellerId(target.seller_id)
+    const url = new URL(window.location.href)
+    url.searchParams.delete('offer')
+    window.history.replaceState({}, '', url.toString())
+  }, [focusedOfferId, listings, mapInstance])
+
+  const clearFocusedOffer = useCallback(() => setFocusedOfferId(null), [])
 
   return (
     <div className="relative w-full h-full" style={{ minHeight: 0 }}>
@@ -419,6 +449,8 @@ export default function FarmersMap() {
           sellerId={selectedSellerId}
           listings={listings ?? []}
           onClose={closeSheet}
+          focusedOfferId={focusedOfferId}
+          onFocusHandled={clearFocusedOffer}
         />
       )}
     </div>
