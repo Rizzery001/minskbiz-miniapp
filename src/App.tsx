@@ -13,6 +13,8 @@ import Cart from './pages/Cart'
 import FarmersMap from './pages/FarmersMap'
 import OrderSuccess from './pages/OrderSuccess'
 import Orders from './pages/Orders'
+import Profile from './pages/Profile'
+import Waste from './pages/Waste'
 
 function Layout() {
   return (
@@ -65,6 +67,8 @@ export default function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/orders" element={<Orders />} />
         <Route path="/orders/success" element={<OrderSuccess />} />
+        <Route path="/waste" element={<Waste />} />
+        <Route path="/me" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/farmers" replace />} />
     </Routes>

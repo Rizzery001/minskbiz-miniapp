@@ -1,4 +1,4 @@
-import { MapPin, Package, ShoppingCart } from 'lucide-react'
+import { BarChart3, MapPin, Package, ShoppingCart, User } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useCartCount } from '../lib/useCart'
@@ -32,6 +32,16 @@ export default function BottomNav() {
         to="/orders"
         label="Заказы"
         icon={<Package size={24} strokeWidth={2} aria-hidden="true" />}
+      />
+      <NavItem
+        to="/waste"
+        label="Аналитика"
+        icon={<BarChart3 size={24} strokeWidth={2} aria-hidden="true" />}
+      />
+      <NavItem
+        to="/me"
+        label="Я"
+        icon={<User size={24} strokeWidth={2} aria-hidden="true" />}
       />
     </nav>
   )
