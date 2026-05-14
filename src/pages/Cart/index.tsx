@@ -82,7 +82,7 @@ export default function Cart() {
       } else {
         hapticFeedback.error()
       }
-      navigate('/orders/success', { state: { results } })
+      navigate('/me/orders/success', { state: { results } })
     } finally {
       setSubmitting(false)
     }

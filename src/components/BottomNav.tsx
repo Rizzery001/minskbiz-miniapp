@@ -1,10 +1,11 @@
-import { MapPin, Package, ShoppingCart } from 'lucide-react'
+import { BarChart3, MapPin, ShoppingCart, User } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useCartCount } from '../lib/useCart'
 
 export default function BottomNav() {
-  const count = useCartCount()
+  const cartCount = useCartCount()
+  const cartHasItems = cartCount > 0
 
   return (
     <nav
@@ -22,16 +23,23 @@ export default function BottomNav() {
         label="Карта"
         icon={<MapPin size={24} strokeWidth={2} aria-hidden="true" />}
       />
+      {cartHasItems && (
+        <NavItem
+          to="/cart"
+          label="Корзина"
+          icon={<ShoppingCart size={24} strokeWidth={2} aria-hidden="true" />}
+          badge={cartCount}
+        />
+      )}
       <NavItem
-        to="/cart"
-        label="Корзина"
-        icon={<ShoppingCart size={24} strokeWidth={2} aria-hidden="true" />}
-        badge={count}
+        to="/waste"
+        label="Аналитика"
+        icon={<BarChart3 size={24} strokeWidth={2} aria-hidden="true" />}
       />
       <NavItem
-        to="/orders"
-        label="Заказы"
-        icon={<Package size={24} strokeWidth={2} aria-hidden="true" />}
+        to="/me"
+        label="Я"
+        icon={<User size={24} strokeWidth={2} aria-hidden="true" />}
       />
     </nav>
   )
@@ -48,7 +56,6 @@ function NavItem({ to, label, icon, badge }: NavItemProps) {
   return (
     <NavLink
       to={to}
-      end={to === '/orders' ? false : undefined}
       className="flex-1 flex flex-col items-center justify-center gap-0.5 active:opacity-70 transition-opacity"
       style={{ transitionDuration: '150ms' }}
     >
