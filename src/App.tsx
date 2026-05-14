@@ -65,10 +65,18 @@ export default function App() {
       <Route element={<Layout />}>
         <Route path="/farmers" element={<FarmersMap />} />
         <Route path="/cart" element={<Cart />} />
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/orders/success" element={<OrderSuccess />} />
+        <Route
+          path="/orders"
+          element={<Navigate to="/me/orders" replace />}
+        />
+        <Route
+          path="/orders/success"
+          element={<Navigate to="/me/orders/success" replace />}
+        />
         <Route path="/waste" element={<Waste />} />
         <Route path="/me" element={<Profile />} />
+        <Route path="/me/orders" element={<Orders />} />
+        <Route path="/me/orders/success" element={<OrderSuccess />} />
       </Route>
       <Route path="*" element={<Navigate to="/farmers" replace />} />
     </Routes>
