@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { useUserMe } from './api/hooks'
 import BottomNav from './components/BottomNav'
@@ -13,8 +13,27 @@ import Cart from './pages/Cart'
 import FarmersMap from './pages/FarmersMap'
 import OrderSuccess from './pages/OrderSuccess'
 import Orders from './pages/Orders'
-import Profile from './pages/Profile'
-import Waste from './pages/Waste'
+
+const Profile = lazy(() => import('./pages/Profile'))
+const Waste = lazy(() => import('./pages/Waste'))
+
+function PageLoader() {
+  return (
+    <div
+      className="h-full flex items-center justify-center"
+      style={{ color: 'var(--tg-hint)' }}
+    >
+      <div
+        className="w-8 h-8 rounded-full animate-spin"
+        style={{
+          border: '3px solid var(--tg-link)',
+          borderTopColor: 'transparent',
+        }}
+        aria-hidden="true"
+      />
+    </div>
+  )
+}
 
 function Layout() {
   return (
@@ -73,8 +92,22 @@ export default function App() {
           path="/orders/success"
           element={<Navigate to="/me/orders/success" replace />}
         />
-        <Route path="/waste" element={<Waste />} />
-        <Route path="/me" element={<Profile />} />
+        <Route
+          path="/waste"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <Waste />
+            </Suspense>
+          }
+        />
+        <Route
+          path="/me"
+          element={
+            <Suspense fallback={<PageLoader />}>
+              <Profile />
+            </Suspense>
+          }
+        />
         <Route path="/me/orders" element={<Orders />} />
         <Route path="/me/orders/success" element={<OrderSuccess />} />
       </Route>

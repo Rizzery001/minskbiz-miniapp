@@ -34,3 +34,21 @@ In PR #19 (`feat/waste-analytics`) we applied **variant B**:
 - **`useUserMe` has no `first_name` field.** ProfilePage falls back to
   "Пользователь". When the API exposes the Telegram display name, swap
   in a real name + avatar.
+
+## Waste analytics (PR #19) — deferred items
+
+These are intentional MVP trade-offs, not bugs. Revisit when the
+feature graduates beyond the first batch of users.
+
+- **Demo button stays on in production.** The "Посмотреть демо" button
+  in `EmptyState` is unconditional today. Once we have a `PRODUCTION`
+  / `VITE_ENV` env flag, gate the demo path behind a feature flag so
+  real users don't accidentally interpret demo numbers as their own.
+- **`ByReasonChart` on 320 px viewport (iPhone SE 1) is unverified.**
+  The donut + side legend fits 375 px (iPhone 12/13/SE 2) comfortably,
+  but I didn't test on the original SE. If it crowds, switch the
+  legend to wrap underneath the donut on `< 360 px`.
+- **Demo data is hard-coded in `src/demo/waste-demo.ts`.** When the
+  backend contract stabilizes and real users start accumulating
+  records, decide whether to keep demo data for onboarding (good for
+  first-impression UX) or drop it (smaller bundle, less ambiguity).
