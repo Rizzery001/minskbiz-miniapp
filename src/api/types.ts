@@ -56,11 +56,22 @@ export interface Order {
   estimated_total?: number | null
   pickup_when?: string | null
   comment?: string | null
+  // Populated on seller-facing endpoints (GET /me/orders) — describes
+  // who placed the order. Optional because the buyer-facing /orders/my
+  // shape omits these.
+  buyer_business_name?: string | null
+  buyer_phone?: string | null
+  cart_id?: string | null
 }
 
 export interface OrdersResponse {
   count: number
   items: Order[]
+}
+
+export interface OrderActionResponse {
+  id: string
+  status: OrderStatus
 }
 
 export type SellerCategory =
@@ -176,6 +187,22 @@ export interface SellerCreatePayload {
   home_lat?: number
   home_lng?: number
   selling_points: SellingPoint[]
+}
+
+export interface SellerUpdatePayload {
+  name?: string
+  category?: SellerCategory | string
+  phone?: string
+  // null clears the existing value on the backend.
+  home_address?: string | null
+  home_lat?: number | null
+  home_lng?: number | null
+}
+
+export interface SellerUpdateResponse {
+  seller_id: string
+  status: 'updated'
+  fields: string[]
 }
 
 export interface GeocodeResult {

@@ -173,6 +173,35 @@ export function useMyListings(enabled: boolean): AsyncResult<MyListing[]> {
   return { data, loading, error, refetch }
 }
 
+// Seller-side: GET /me/orders → all orders placed against this seller.
+// Separate from useMyOrders (buyer-side /orders/my) so we don't collide
+// with the existing buyer Profile flow.
+export function useSellerOrders(enabled: boolean): AsyncResult<Order[]> {
+  const [data, setData] = useState<Order[] | null>(null)
+  const [loading, setLoading] = useState(enabled)
+  const [error, setError] = useState<ApiError | null>(null)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) {
+      setData(null); setLoading(false); setError(null); return
+    }
+    let cancelled = false
+    setLoading(true); setError(null)
+    apiGet<OrdersResponse>('/me/orders', { limit: 50 })
+      .then((res) => { if (!cancelled) setData(res?.items ?? []) })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof ApiError ? err : new ApiError(0, 'Unknown error'))
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [enabled, tick])
+
+  const refetch = useCallback(() => setTick((t) => t + 1), [])
+  return { data, loading, error, refetch }
+}
+
 export interface MyOrdersParams {
   limit?: number
   status?: string

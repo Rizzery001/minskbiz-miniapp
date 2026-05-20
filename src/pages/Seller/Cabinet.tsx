@@ -4,9 +4,11 @@ import {
   Pencil,
   Play,
   Plus,
+  Settings,
   Trash2,
 } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ApiError, apiDelete, apiPatch } from '../../api/client'
 import { useMyListings, useSeller, useSellingPoints } from '../../api/hooks'
 import type {
@@ -21,9 +23,11 @@ import ErrorState from '../../components/ErrorState'
 import { hapticFeedback } from '../../lib/telegram'
 import AddSellingPointModal from './AddSellingPointModal'
 import ListingFormModal from './ListingFormModal'
+import OrdersSection from './OrdersSection'
 import { SELLER_CATEGORIES } from './categories'
 
 export default function SellerCabinet() {
+  const navigate = useNavigate()
   const { data: seller, loading, error, refetch } = useSeller(true)
   const {
     data: sellingPoints,
@@ -216,29 +220,55 @@ export default function SellerCabinet() {
     window.alert('В следующей версии можно будет выйти.')
   }
 
+  const openSettings = () => {
+    hapticFeedback.light()
+    navigate('/seller/edit')
+  }
+
   return (
     <div className="p-4 flex flex-col" style={{ minHeight: '100%' }}>
-      <header className="pt-4 pb-6 text-center">
-        <div className="text-5xl mb-3" aria-hidden="true">
-          👋
-        </div>
-        <h1
-          className="font-semibold mb-2"
-          style={{ fontSize: 22, lineHeight: 1.2 }}
-        >
-          Здравствуйте, {seller.name}!
-        </h1>
-        <p
-          className="mx-auto"
+      <header className="pt-4 pb-6 relative">
+        <button
+          type="button"
+          onClick={openSettings}
+          aria-label="Редактировать ферму"
+          title="Редактировать ферму"
+          className="absolute rounded-full flex items-center justify-center active:opacity-70 active:scale-95 transition"
           style={{
-            fontSize: 14,
-            color: 'var(--tg-hint)',
-            lineHeight: 1.45,
-            maxWidth: 320,
+            top: 12,
+            right: 0,
+            width: 36,
+            height: 36,
+            backgroundColor: 'var(--tg-secondary-bg)',
+            color: 'var(--tg-text)',
+            transitionDuration: '150ms',
           }}
         >
-          Скоро здесь появятся ваши товары и заказы. Мы уже работаем над этим.
-        </p>
+          <Settings size={18} strokeWidth={2} aria-hidden="true" />
+        </button>
+
+        <div className="text-center">
+          <div className="text-5xl mb-3" aria-hidden="true">
+            👋
+          </div>
+          <h1
+            className="font-semibold mb-2"
+            style={{ fontSize: 22, lineHeight: 1.2 }}
+          >
+            Здравствуйте, {seller.name}!
+          </h1>
+          <p
+            className="mx-auto"
+            style={{
+              fontSize: 14,
+              color: 'var(--tg-hint)',
+              lineHeight: 1.45,
+              maxWidth: 320,
+            }}
+          >
+            Принимайте заказы, управляйте товарами и местами продажи.
+          </p>
+        </div>
       </header>
 
       <section
@@ -356,6 +386,8 @@ export default function SellerCabinet() {
           <span>Добавить место продажи</span>
         </button>
       </section>
+
+      <OrdersSection />
 
       <section className="mt-5" aria-label="Мои товары">
         <h2

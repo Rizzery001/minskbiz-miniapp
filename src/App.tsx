@@ -27,6 +27,7 @@ const SellerWelcome = lazy(() => import('./pages/Seller/Welcome'))
 const SellerRegister = lazy(() => import('./pages/Seller/Register'))
 const SellerLogin = lazy(() => import('./pages/Seller/Login'))
 const SellerCabinet = lazy(() => import('./pages/Seller/Cabinet'))
+const SellerEdit = lazy(() => import('./pages/Seller/Edit'))
 
 const SELLER_ROLE_KEY = 'krana_role'
 
@@ -193,6 +194,14 @@ export default function App() {
             element={
               <Suspense fallback={<PageLoader />}>
                 <SellerCabinet />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/seller/edit"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SellerEdit />
               </Suspense>
             }
           />
