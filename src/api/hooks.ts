@@ -3,6 +3,8 @@ import { apiGet, ApiError } from './client'
 import type {
   Listing,
   ListingsResponse,
+  MyListing,
+  MyListingsResponse,
   Order,
   OrdersResponse,
   Seller,
@@ -132,6 +134,32 @@ export function useSellingPoints(enabled: boolean): AsyncResult<SellingPoint[]> 
     let cancelled = false
     setLoading(true); setError(null)
     apiGet<SellingPointsResponse>('/me/selling-points')
+      .then((res) => { if (!cancelled) setData(res?.items ?? []) })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof ApiError ? err : new ApiError(0, 'Unknown error'))
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [enabled, tick])
+
+  const refetch = useCallback(() => setTick((t) => t + 1), [])
+  return { data, loading, error, refetch }
+}
+
+export function useMyListings(enabled: boolean): AsyncResult<MyListing[]> {
+  const [data, setData] = useState<MyListing[] | null>(null)
+  const [loading, setLoading] = useState(enabled)
+  const [error, setError] = useState<ApiError | null>(null)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) {
+      setData(null); setLoading(false); setError(null); return
+    }
+    let cancelled = false
+    setLoading(true); setError(null)
+    apiGet<MyListingsResponse>('/me/listings')
       .then((res) => { if (!cancelled) setData(res?.items ?? []) })
       .catch((err: unknown) => {
         if (cancelled) return

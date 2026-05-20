@@ -99,6 +99,59 @@ export interface SellingPointDeleteResponse {
   status: 'deleted'
 }
 
+export type ListingStatus = 'active' | 'paused' | 'sold' | string
+
+// Listing shape returned by GET /me/listings — the seller's own catalog.
+// Buyer-facing /listings uses the richer `Listing` type above (with
+// seller_*, pin_*, location_* etc.); seller endpoints don't need those.
+export interface MyListing {
+  id: string
+  title: string
+  category: string
+  emoji?: string | null
+  quantity: number
+  unit: string
+  price_per_unit: number
+  currency: string
+  available_until?: string | null
+  status: ListingStatus
+  created_at: string
+  updated_at?: string
+}
+
+export interface MyListingsResponse {
+  count: number
+  items: MyListing[]
+}
+
+export interface ListingCreatePayload {
+  title: string
+  category: SellerCategory | string
+  emoji?: string
+  quantity: number
+  unit: string
+  price_per_unit: number
+  currency?: string
+  available_until?: string
+}
+
+export interface ListingUpdatePayload {
+  title?: string
+  category?: SellerCategory | string
+  emoji?: string | null
+  quantity?: number
+  unit?: string
+  price_per_unit?: number
+  currency?: string
+  available_until?: string | null
+  status?: ListingStatus
+}
+
+export interface ListingDeleteResponse {
+  id: string
+  status: 'deleted'
+}
+
 export interface Seller {
   seller_id: string
   name: string

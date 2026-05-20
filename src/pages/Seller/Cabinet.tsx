@@ -1,11 +1,26 @@
-import { LogOut, Plus, Trash2 } from 'lucide-react'
-import { useCallback, useState } from 'react'
-import { ApiError, apiDelete } from '../../api/client'
-import { useSeller, useSellingPoints } from '../../api/hooks'
-import type { SellingPoint, SellingPointDeleteResponse } from '../../api/types'
+import {
+  LogOut,
+  Pause,
+  Pencil,
+  Play,
+  Plus,
+  Trash2,
+} from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { ApiError, apiDelete, apiPatch } from '../../api/client'
+import { useMyListings, useSeller, useSellingPoints } from '../../api/hooks'
+import type {
+  ListingDeleteResponse,
+  ListingStatus,
+  ListingUpdatePayload,
+  MyListing,
+  SellingPoint,
+  SellingPointDeleteResponse,
+} from '../../api/types'
 import ErrorState from '../../components/ErrorState'
 import { hapticFeedback } from '../../lib/telegram'
 import AddSellingPointModal from './AddSellingPointModal'
+import ListingFormModal from './ListingFormModal'
 import { SELLER_CATEGORIES } from './categories'
 
 export default function SellerCabinet() {
@@ -17,12 +32,28 @@ export default function SellerCabinet() {
     refetch: refetchPoints,
   } = useSellingPoints(true)
 
+  const {
+    data: listings,
+    loading: listingsLoading,
+    error: listingsError,
+    refetch: refetchListings,
+  } = useMyListings(true)
+
   const [showAddModal, setShowAddModal] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  // Listings CRUD state.
+  const [listingModalOpen, setListingModalOpen] = useState(false)
+  const [editingListing, setEditingListing] = useState<MyListing | null>(null)
+  const [listingActionId, setListingActionId] = useState<string | null>(null)
+  const [listingActionError, setListingActionError] = useState<string | null>(
+    null,
+  )
+
   const points = sellingPoints ?? []
   const canDelete = points.length > 1
+  const items = listings ?? []
 
   const handleAddClick = useCallback(() => {
     hapticFeedback.light()
@@ -69,6 +100,92 @@ export default function SellerCabinet() {
       }
     },
     [canDelete, deletingId, refetchPoints],
+  )
+
+  const openCreateListing = useCallback(() => {
+    hapticFeedback.light()
+    setEditingListing(null)
+    setListingActionError(null)
+    setListingModalOpen(true)
+  }, [])
+
+  const openEditListing = useCallback((listing: MyListing) => {
+    hapticFeedback.light()
+    setEditingListing(listing)
+    setListingActionError(null)
+    setListingModalOpen(true)
+  }, [])
+
+  const closeListingModal = useCallback(() => {
+    setListingModalOpen(false)
+    setEditingListing(null)
+  }, [])
+
+  const handleListingSaved = useCallback(
+    (_saved: MyListing) => {
+      setListingModalOpen(false)
+      setEditingListing(null)
+      refetchListings()
+    },
+    [refetchListings],
+  )
+
+  const handleListingToggleStatus = useCallback(
+    async (listing: MyListing) => {
+      if (listingActionId) return
+      const nextStatus: ListingStatus =
+        listing.status === 'paused' ? 'active' : 'paused'
+      hapticFeedback.light()
+      setListingActionId(listing.id)
+      setListingActionError(null)
+      try {
+        const patch: ListingUpdatePayload = { status: nextStatus }
+        await apiPatch<MyListing>(
+          `/me/listings/${encodeURIComponent(listing.id)}`,
+          patch,
+        )
+        hapticFeedback.success()
+        refetchListings()
+      } catch (err: unknown) {
+        hapticFeedback.error()
+        const msg =
+          err instanceof ApiError
+            ? `${err.message}${err.code ? ` (${err.code})` : ''}`
+            : 'Не удалось изменить статус. Попробуйте ещё раз.'
+        setListingActionError(msg)
+      } finally {
+        setListingActionId(null)
+      }
+    },
+    [listingActionId, refetchListings],
+  )
+
+  const handleListingDelete = useCallback(
+    async (listing: MyListing) => {
+      if (listingActionId) return
+      const confirmed = window.confirm(`Удалить товар «${listing.title}»?`)
+      if (!confirmed) return
+      hapticFeedback.medium()
+      setListingActionId(listing.id)
+      setListingActionError(null)
+      try {
+        await apiDelete<ListingDeleteResponse>(
+          `/me/listings/${encodeURIComponent(listing.id)}`,
+        )
+        hapticFeedback.success()
+        refetchListings()
+      } catch (err: unknown) {
+        hapticFeedback.error()
+        const msg =
+          err instanceof ApiError
+            ? `${err.message}${err.code ? ` (${err.code})` : ''}`
+            : 'Не удалось удалить товар. Попробуйте ещё раз.'
+        setListingActionError(msg)
+      } finally {
+        setListingActionId(null)
+      }
+    },
+    [listingActionId, refetchListings],
   )
 
   if (loading) {
@@ -240,6 +357,101 @@ export default function SellerCabinet() {
         </button>
       </section>
 
+      <section className="mt-5" aria-label="Мои товары">
+        <h2
+          className="font-semibold mb-2"
+          style={{ fontSize: 16, color: 'var(--tg-text)' }}
+        >
+          🛒 Мои товары
+        </h2>
+
+        {listingsLoading && items.length === 0 && (
+          <p
+            className="py-2"
+            style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+          >
+            Загрузка товаров…
+          </p>
+        )}
+
+        {listingsError && (
+          <div
+            className="rounded-lg p-3 mb-3"
+            style={{
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              color: 'var(--tg-destructive-text, #ff3b30)',
+              fontSize: 14,
+            }}
+          >
+            <div>{listingsError.message}</div>
+            <button
+              type="button"
+              onClick={refetchListings}
+              className="mt-2 active:opacity-70 transition"
+              style={{
+                color: 'var(--tg-link)',
+                fontSize: 13,
+                transitionDuration: '150ms',
+              }}
+            >
+              Повторить
+            </button>
+          </div>
+        )}
+
+        {!listingsLoading && !listingsError && items.length === 0 && (
+          <p
+            className="mb-3"
+            style={{ fontSize: 13, color: 'var(--tg-hint)', lineHeight: 1.4 }}
+          >
+            Пока нет товаров. Добавьте первый, чтобы покупатели могли его
+            увидеть.
+          </p>
+        )}
+
+        <div className="flex flex-col gap-3">
+          {items.map((listing) => (
+            <ListingCard
+              key={listing.id}
+              listing={listing}
+              busy={listingActionId === listing.id}
+              onEdit={() => openEditListing(listing)}
+              onToggle={() => handleListingToggleStatus(listing)}
+              onDelete={() => handleListingDelete(listing)}
+            />
+          ))}
+        </div>
+
+        {listingActionError && (
+          <p
+            className="mt-2"
+            style={{
+              fontSize: 13,
+              color: 'var(--tg-destructive-text, #ff3b30)',
+            }}
+          >
+            {listingActionError}
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={openCreateListing}
+          className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-lg active:opacity-80 transition"
+          style={{
+            backgroundColor: 'var(--tg-secondary-bg)',
+            color: 'var(--tg-link)',
+            border: '1px dashed var(--tg-hairline)',
+            fontSize: 14,
+            fontWeight: 500,
+            transitionDuration: '150ms',
+          }}
+        >
+          <Plus size={16} strokeWidth={2} aria-hidden="true" />
+          <span>Добавить товар</span>
+        </button>
+      </section>
+
       <div className="mt-auto pt-6">
         <button
           type="button"
@@ -263,8 +475,217 @@ export default function SellerCabinet() {
           onCreated={handleCreated}
         />
       )}
+
+      <ListingFormModal
+        open={listingModalOpen}
+        onClose={closeListingModal}
+        onSaved={handleListingSaved}
+        initial={editingListing}
+      />
     </div>
   )
+}
+
+interface ListingCardProps {
+  listing: MyListing
+  busy: boolean
+  onEdit: () => void
+  onToggle: () => void
+  onDelete: () => void
+}
+
+function ListingCard({
+  listing,
+  busy,
+  onEdit,
+  onToggle,
+  onDelete,
+}: ListingCardProps) {
+  const categoryOpt = useMemo(
+    () => SELLER_CATEGORIES.find((c) => c.value === listing.category),
+    [listing.category],
+  )
+  const emoji = listing.emoji || categoryOpt?.emoji || '📦'
+  const categoryLine = categoryOpt
+    ? `${categoryOpt.emoji} ${categoryOpt.label}`
+    : listing.category
+
+  const priceStr = `${formatNumber(listing.price_per_unit)} ${listing.currency} / ${listing.unit}`
+  const qtyStr = `Осталось: ${formatNumber(listing.quantity)} ${listing.unit}`
+  const availableLine = formatAvailableUntil(listing.available_until)
+
+  const isPaused = listing.status === 'paused'
+  const isSold = listing.status === 'sold'
+  const canToggle = !isSold
+  const toggleLabel = isPaused ? 'Возобновить' : 'Поставить на паузу'
+
+  return (
+    <article
+      className="tg-shadow-sm rounded-xl"
+      style={{
+        backgroundColor: 'var(--tg-section-bg, var(--tg-bg))',
+        padding: 14,
+        border: '1px solid var(--tg-hairline)',
+      }}
+    >
+      <div className="flex items-start gap-3">
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{
+            width: 44,
+            height: 44,
+            borderRadius: 12,
+            backgroundColor: 'var(--tg-secondary-bg)',
+            fontSize: 22,
+            lineHeight: 1,
+          }}
+          aria-hidden="true"
+        >
+          {emoji}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <h3
+              className="font-medium leading-tight"
+              style={{ fontSize: 15, color: 'var(--tg-text)' }}
+            >
+              {listing.title}
+            </h3>
+            <StatusBadge status={listing.status} />
+          </div>
+          <p
+            className="mt-1 tabular-nums"
+            style={{ fontSize: 14, color: 'var(--tg-accent-text)' }}
+          >
+            {priceStr}
+          </p>
+          <p
+            className="mt-0.5 tabular-nums"
+            style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+          >
+            {qtyStr}
+          </p>
+          {availableLine && (
+            <p
+              className="mt-0.5"
+              style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+            >
+              {availableLine}
+            </p>
+          )}
+          <p
+            className="mt-0.5"
+            style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+          >
+            {categoryLine}
+          </p>
+        </div>
+        <div className="shrink-0 flex items-center gap-1">
+          <IconButton
+            label="Редактировать"
+            onClick={onEdit}
+            disabled={busy}
+          >
+            <Pencil size={16} strokeWidth={2} />
+          </IconButton>
+          <IconButton
+            label={toggleLabel}
+            onClick={onToggle}
+            disabled={busy || !canToggle}
+          >
+            {isPaused ? (
+              <Play size={16} strokeWidth={2} />
+            ) : (
+              <Pause size={16} strokeWidth={2} />
+            )}
+          </IconButton>
+          <IconButton
+            label="Удалить"
+            onClick={onDelete}
+            disabled={busy}
+            tone="destructive"
+          >
+            <Trash2 size={16} strokeWidth={2} />
+          </IconButton>
+        </div>
+      </div>
+    </article>
+  )
+}
+
+function StatusBadge({ status }: { status: ListingStatus }) {
+  if (status === 'active') return null
+  const label = status === 'paused' ? 'На паузе' : 'Продано'
+  return (
+    <span
+      className="inline-flex items-center rounded-full whitespace-nowrap"
+      style={{
+        padding: '2px 8px',
+        backgroundColor: 'var(--tg-secondary-bg)',
+        color: 'var(--tg-hint)',
+        fontSize: 11,
+        fontWeight: 500,
+        lineHeight: 1.4,
+      }}
+    >
+      {label}
+    </span>
+  )
+}
+
+interface IconButtonProps {
+  label: string
+  onClick: () => void
+  disabled?: boolean
+  tone?: 'default' | 'destructive'
+  children: React.ReactNode
+}
+
+function IconButton({
+  label,
+  onClick,
+  disabled = false,
+  tone = 'default',
+  children,
+}: IconButtonProps) {
+  const color =
+    tone === 'destructive'
+      ? 'var(--tg-destructive-text, #ff3b30)'
+      : 'var(--tg-text)'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className="rounded-full flex items-center justify-center active:opacity-70 disabled:opacity-30 transition"
+      style={{
+        width: 32,
+        height: 32,
+        backgroundColor: 'var(--tg-secondary-bg)',
+        color,
+        transitionDuration: '150ms',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function formatNumber(value: number): string {
+  if (!Number.isFinite(value)) return String(value)
+  const fixed = Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)
+  // Strip trailing zeros after a decimal point ("10.50" → "10.5").
+  return fixed.includes('.') ? fixed.replace(/\.?0+$/, '') : fixed
+}
+
+function formatAvailableUntil(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw)
+  if (!m) return null
+  const [, y, mo, d] = m
+  return `Доступно до ${d}.${mo}.${y}`
 }
 
 interface CardProps {
