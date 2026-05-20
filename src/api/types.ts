@@ -20,12 +20,20 @@ export interface Listing {
   currency: string
   unit: string
   quantity?: number
+  status?: string
   seller_id: string
   seller_name: string
   seller_phone?: string
-  location_label?: string
-  location_lat: number
-  location_lng: number
+  // Legacy single-location fields. Still present on older listings; kept
+  // optional so we can fall back when pin_* is missing.
+  location_label?: string | null
+  location_lat?: number
+  location_lng?: number
+  // Primary pin coordinates returned by the backend — closest selling
+  // point to the requesting buyer.
+  pin_lat?: number
+  pin_lng?: number
+  selling_points?: SellingPoint[]
   available_until?: string
   distance_km?: number
 }
@@ -66,11 +74,29 @@ export type SellerCategory =
   | 'other'
 
 export interface SellingPoint {
+  id?: string
   label: string
   address?: string | null
   lat: number
   lng: number
   schedule?: string | null
+}
+
+export interface SellingPointsResponse {
+  items: SellingPoint[]
+}
+
+export interface SellingPointCreatePayload {
+  label: string
+  address?: string
+  lat: number
+  lng: number
+  schedule?: string
+}
+
+export interface SellingPointDeleteResponse {
+  id: string
+  status: 'deleted'
 }
 
 export interface Seller {

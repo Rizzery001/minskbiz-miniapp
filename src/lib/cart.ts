@@ -16,6 +16,10 @@ let cached: CartItem[] = []
 function isListing(x: unknown): x is Listing {
   if (typeof x !== 'object' || x === null) return false
   const o = x as Record<string, unknown>
+  const hasPin =
+    typeof o.pin_lat === 'number' && typeof o.pin_lng === 'number'
+  const hasLegacy =
+    typeof o.location_lat === 'number' && typeof o.location_lng === 'number'
   return (
     typeof o.id === 'string' &&
     typeof o.title === 'string' &&
@@ -25,8 +29,7 @@ function isListing(x: unknown): x is Listing {
     typeof o.unit === 'string' &&
     typeof o.seller_id === 'string' &&
     typeof o.seller_name === 'string' &&
-    typeof o.location_lat === 'number' &&
-    typeof o.location_lng === 'number'
+    (hasPin || hasLegacy)
   )
 }
 

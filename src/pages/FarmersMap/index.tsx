@@ -1,6 +1,7 @@
 import L from 'leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
+import type { Listing } from '../../api/types'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
 import {
@@ -12,6 +13,26 @@ import FarmerSheet from './FarmerSheet'
 import LocateMeButton from './LocateMeButton'
 import SearchInput from './SearchInput'
 import { getCategoryStyle, normalizeCategory } from './categoryColors'
+
+function getPinCoords(listing: Listing): [number, number] | null {
+  if (
+    typeof listing.pin_lat === 'number' &&
+    Number.isFinite(listing.pin_lat) &&
+    typeof listing.pin_lng === 'number' &&
+    Number.isFinite(listing.pin_lng)
+  ) {
+    return [listing.pin_lat, listing.pin_lng]
+  }
+  if (
+    typeof listing.location_lat === 'number' &&
+    Number.isFinite(listing.location_lat) &&
+    typeof listing.location_lng === 'number' &&
+    Number.isFinite(listing.location_lng)
+  ) {
+    return [listing.location_lat, listing.location_lng]
+  }
+  return null
+}
 
 const MINSK_CENTER: [number, number] = [53.9, 27.5667]
 const INITIAL_ZOOM = 10
@@ -220,7 +241,7 @@ export default function FarmersMap() {
     if (!listings) return []
     const q = debouncedQuery.trim().toLowerCase()
     return listings.filter((l) => {
-      if (!isValidLatLng(l.location_lat, l.location_lng)) return false
+      if (!getPinCoords(l)) return false
       if (
         selectedCategories.size > 0 &&
         !selectedCategories.has(normalizeCategory(l.category))
@@ -236,6 +257,35 @@ export default function FarmersMap() {
       return true
     })
   }, [listings, selectedCategories, debouncedQuery])
+
+  // Group visible listings by seller_id and pick the first listing per
+  // seller as the pin anchor. Backend sends the same pin_* coords for
+  // all listings of one seller, so any listing in the group works.
+  interface SellerPin {
+    sellerId: string
+    sellerName: string
+    coords: [number, number]
+    category: string
+    emoji?: string
+  }
+  const sellerPins = useMemo<SellerPin[]>(() => {
+    const seen = new Set<string>()
+    const pins: SellerPin[] = []
+    for (const l of visibleListings) {
+      if (seen.has(l.seller_id)) continue
+      const coords = getPinCoords(l)
+      if (!coords) continue
+      seen.add(l.seller_id)
+      pins.push({
+        sellerId: l.seller_id,
+        sellerName: l.seller_name,
+        coords,
+        category: l.category,
+        emoji: l.emoji,
+      })
+    }
+    return pins
+  }, [visibleListings])
 
   const availableCategories = useMemo<string[]>(() => {
     if (!listings) return []
@@ -270,8 +320,9 @@ export default function FarmersMap() {
     const target = listings.find((l) => l.id === focusedOfferId)
     if (!target) return
     focusHandledRef.current = true
-    if (mapInstance && isValidLatLng(target.location_lat, target.location_lng)) {
-      mapInstance.flyTo([target.location_lat, target.location_lng], FOCUS_ZOOM)
+    const targetCoords = getPinCoords(target)
+    if (mapInstance && targetCoords) {
+      mapInstance.flyTo(targetCoords, FOCUS_ZOOM)
     }
     setSelectedSellerId(target.seller_id)
     const url = new URL(window.location.href)
@@ -306,20 +357,20 @@ export default function FarmersMap() {
         <ViewportTracker onChange={setView} />
         <MapInstanceCapture onReady={setMapInstance} />
         <MapSizeFixer initialCenter={initialCenter} recenterZoom={RECENTER_ZOOM} />
-        {visibleListings.map((listing) => {
-          const style = getCategoryStyle(listing.category)
-          const emoji = listing.emoji ?? style.emoji
-          const isActive = listing.seller_id === selectedSellerId
+        {sellerPins.map((pin) => {
+          const style = getCategoryStyle(pin.category)
+          const emoji = pin.emoji ?? style.emoji
+          const isActive = pin.sellerId === selectedSellerId
           return (
             <Marker
-              key={listing.id}
-              position={[listing.location_lat, listing.location_lng]}
+              key={pin.sellerId}
+              position={pin.coords}
               icon={makeMarkerIcon(style.color, emoji, isActive, colorScheme)}
               zIndexOffset={isActive ? 1000 : 0}
               eventHandlers={{
                 click: () => {
                   hapticFeedback.light()
-                  setSelectedSellerId(listing.seller_id)
+                  setSelectedSellerId(pin.sellerId)
                 },
               }}
             />
@@ -362,7 +413,7 @@ export default function FarmersMap() {
               lineHeight: 1,
             }}
           >
-            {visibleListings.length}
+            {sellerPins.length}
           </span>
         </div>
         {availableCategories.length > 0 && (

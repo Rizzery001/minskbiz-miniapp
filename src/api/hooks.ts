@@ -6,6 +6,8 @@ import type {
   Order,
   OrdersResponse,
   Seller,
+  SellingPoint,
+  SellingPointsResponse,
   UserMe,
 } from './types'
 
@@ -115,6 +117,32 @@ export function useSeller(enabled: boolean): SellerResult {
 
   const refetch = useCallback(() => setTick((t) => t + 1), [])
   return { data, loading, notFound, error, refetch }
+}
+
+export function useSellingPoints(enabled: boolean): AsyncResult<SellingPoint[]> {
+  const [data, setData] = useState<SellingPoint[] | null>(null)
+  const [loading, setLoading] = useState(enabled)
+  const [error, setError] = useState<ApiError | null>(null)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) {
+      setData(null); setLoading(false); setError(null); return
+    }
+    let cancelled = false
+    setLoading(true); setError(null)
+    apiGet<SellingPointsResponse>('/me/selling-points')
+      .then((res) => { if (!cancelled) setData(res?.items ?? []) })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        setError(err instanceof ApiError ? err : new ApiError(0, 'Unknown error'))
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [enabled, tick])
+
+  const refetch = useCallback(() => setTick((t) => t + 1), [])
+  return { data, loading, error, refetch }
 }
 
 export interface MyOrdersParams {

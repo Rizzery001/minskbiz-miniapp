@@ -1,6 +1,6 @@
-import { Minus, Plus, Sparkles, Store, X } from 'lucide-react'
+import { MapPin, Minus, Plus, Sparkles, Store, X } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Listing } from '../../api/types'
+import type { Listing, SellingPoint } from '../../api/types'
 import {
   addToCart,
   removeFromCart,
@@ -35,6 +35,17 @@ export default function FarmerSheet({
     [listings, sellerId],
   )
   const seller = sellerListings[0]
+
+  // selling_points are shared across all listings of one seller, so take
+  // from the first listing that actually has the array.
+  const sellingPoints = useMemo<SellingPoint[]>(() => {
+    for (const l of sellerListings) {
+      if (l.selling_points && l.selling_points.length > 0) {
+        return l.selling_points
+      }
+    }
+    return []
+  }, [sellerListings])
 
   const [mounted, setMounted] = useState(false)
   const [dragY, setDragY] = useState(0)
@@ -225,9 +236,115 @@ export default function FarmerSheet({
           {sellerListings.map((listing) => (
             <OfferCard key={listing.id} listing={listing} />
           ))}
+
+          {sellingPoints.length > 0 ? (
+            <SellingPointsSection points={sellingPoints} />
+          ) : (
+            seller.location_label && (
+              <LegacyLocationSection label={seller.location_label} />
+            )
+          )}
         </div>
       </div>
     </>
+  )
+}
+
+function SellingPointsSection({ points }: { points: SellingPoint[] }) {
+  return (
+    <section
+      className="rounded-xl"
+      style={{
+        backgroundColor: 'var(--tg-section-bg, var(--tg-secondary-bg))',
+        padding: 14,
+        border: '1px solid var(--tg-hairline)',
+      }}
+      aria-label="Места продажи"
+    >
+      <h3
+        className="font-medium mb-2 flex items-center gap-1.5"
+        style={{ fontSize: 14, color: 'var(--tg-text)' }}
+      >
+        <MapPin
+          size={14}
+          strokeWidth={2}
+          style={{ color: 'var(--tg-link)' }}
+          aria-hidden="true"
+        />
+        <span>Где купить</span>
+      </h3>
+      <ul className="flex flex-col">
+        {points.map((p, idx) => (
+          <li
+            key={p.id ?? `${p.lat},${p.lng},${idx}`}
+            style={
+              idx > 0
+                ? {
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: '1px solid var(--tg-hairline)',
+                  }
+                : undefined
+            }
+          >
+            <div
+              className="font-medium"
+              style={{ fontSize: 14, color: 'var(--tg-text)', lineHeight: 1.3 }}
+            >
+              {p.label}
+            </div>
+            {p.address && (
+              <div
+                className="mt-0.5"
+                style={{ fontSize: 12, color: 'var(--tg-hint)', lineHeight: 1.35 }}
+              >
+                {p.address}
+              </div>
+            )}
+            {p.schedule && (
+              <div
+                className="mt-0.5"
+                style={{ fontSize: 12, color: 'var(--tg-hint)', lineHeight: 1.35 }}
+              >
+                🕐 {p.schedule}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+function LegacyLocationSection({ label }: { label: string }) {
+  return (
+    <section
+      className="rounded-xl"
+      style={{
+        backgroundColor: 'var(--tg-section-bg, var(--tg-secondary-bg))',
+        padding: 14,
+        border: '1px solid var(--tg-hairline)',
+      }}
+      aria-label="Адрес фермы"
+    >
+      <h3
+        className="font-medium mb-1 flex items-center gap-1.5"
+        style={{ fontSize: 14, color: 'var(--tg-text)' }}
+      >
+        <MapPin
+          size={14}
+          strokeWidth={2}
+          style={{ color: 'var(--tg-link)' }}
+          aria-hidden="true"
+        />
+        <span>Где купить</span>
+      </h3>
+      <p
+        style={{ fontSize: 13, color: 'var(--tg-hint)', lineHeight: 1.4 }}
+      >
+        {label}
+      </p>
+    </section>
   )
 }
 
