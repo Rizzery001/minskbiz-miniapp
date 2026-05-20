@@ -1,6 +1,13 @@
-import { lazy, Suspense, useEffect } from 'react'
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
-import { useUserMe } from './api/hooks'
+import { lazy, Suspense, useEffect, useMemo } from 'react'
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
+import { useSeller, useUserMe } from './api/hooks'
 import BottomNav from './components/BottomNav'
 import DemoBanner from './components/DemoBanner'
 import ErrorState from './components/ErrorState'
@@ -16,6 +23,12 @@ import Orders from './pages/Orders'
 
 const Profile = lazy(() => import('./pages/Profile'))
 const Waste = lazy(() => import('./pages/Waste'))
+const SellerWelcome = lazy(() => import('./pages/Seller/Welcome'))
+const SellerRegister = lazy(() => import('./pages/Seller/Register'))
+const SellerLogin = lazy(() => import('./pages/Seller/Login'))
+const SellerCabinet = lazy(() => import('./pages/Seller/Cabinet'))
+
+const SELLER_ROLE_KEY = 'krana_role'
 
 function PageLoader() {
   return (
@@ -55,7 +68,74 @@ function Layout() {
   )
 }
 
+function SellerLayout() {
+  return (
+    <div
+      className="h-full overflow-y-auto"
+      style={{ backgroundColor: 'var(--tg-bg)', color: 'var(--tg-text)' }}
+    >
+      <Outlet />
+    </div>
+  )
+}
+
+function isSellerRole(): boolean {
+  if (typeof window === 'undefined') return false
+  const params = new URLSearchParams(window.location.search)
+  if (params.get('role') === 'seller') {
+    try {
+      window.sessionStorage.setItem(SELLER_ROLE_KEY, '1')
+    } catch {
+      // ignore storage errors
+    }
+    return true
+  }
+  try {
+    return window.sessionStorage.getItem(SELLER_ROLE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function SellerGate() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { data, loading, notFound, error, refetch } = useSeller(true)
+
+  useEffect(() => {
+    if (loading || error) return
+    if (location.pathname !== '/' && location.pathname !== '/seller') return
+    if (data) {
+      navigate('/seller/cabinet', { replace: true })
+    } else if (notFound) {
+      navigate('/seller/welcome', { replace: true })
+    }
+  }, [data, loading, notFound, error, location.pathname, navigate])
+
+  if (loading) {
+    return <PageLoader />
+  }
+
+  if (error) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center"
+        style={{ backgroundColor: 'var(--tg-bg)' }}
+      >
+        <ErrorState
+          title="Не удалось загрузить"
+          message={error.message}
+          onRetry={refetch}
+        />
+      </div>
+    )
+  }
+
+  return null
+}
+
 export default function App() {
+  const sellerMode = useMemo(() => isSellerRole(), [])
   const { error } = useUserMe()
 
   useEffect(() => {
@@ -75,6 +155,50 @@ export default function App() {
           message="Для доступа к карте нужно открыть приложение из Telegram."
         />
       </div>
+    )
+  }
+
+  if (sellerMode) {
+    return (
+      <Routes>
+        <Route path="/" element={<SellerGate />} />
+        <Route path="/seller" element={<SellerGate />} />
+        <Route element={<SellerLayout />}>
+          <Route
+            path="/seller/welcome"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SellerWelcome />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/seller/register"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SellerRegister />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/seller/login"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SellerLogin />
+              </Suspense>
+            }
+          />
+          <Route
+            path="/seller/cabinet"
+            element={
+              <Suspense fallback={<PageLoader />}>
+                <SellerCabinet />
+              </Suspense>
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     )
   }
 

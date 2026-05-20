@@ -54,3 +54,47 @@ export interface OrdersResponse {
   count: number
   items: Order[]
 }
+
+export type SellerCategory =
+  | 'dairy'
+  | 'bakery'
+  | 'eggs'
+  | 'flour'
+  | 'meat'
+  | 'vegetables'
+  | 'fruits'
+  | 'other'
+
+export interface Seller {
+  seller_id: string
+  name: string
+  category: SellerCategory | string
+  phone: string
+  location_lat: number
+  location_lng: number
+  location_label?: string | null
+}
+
+export interface SellerCreatePayload {
+  name: string
+  category: SellerCategory
+  phone: string
+  location_lat: number
+  location_lng: number
+  location_label?: string
+}
+
+export interface SellerCreateResponse {
+  seller_id: string
+  status: 'created'
+}
+
+export interface SellerLoginByPhonePayload {
+  phone: string
+}
+
+export interface SellerLoginByPhoneResponse {
+  seller_id: string
+  name: string
+  status: 'linked'
+}

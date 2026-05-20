@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import { apiGet, ApiError } from './client'
-import type { Listing, ListingsResponse, Order, OrdersResponse, UserMe } from './types'
+import type {
+  Listing,
+  ListingsResponse,
+  Order,
+  OrdersResponse,
+  Seller,
+  UserMe,
+} from './types'
 
 export interface AsyncResult<T> {
   data: T | null
@@ -68,6 +75,46 @@ export function useListings(params: ListingsParams | null): AsyncResult<Listing[
 
   const refetch = useCallback(() => setTick((t) => t + 1), [])
   return { data, loading, error, refetch }
+}
+
+export interface SellerResult {
+  data: Seller | null
+  loading: boolean
+  notFound: boolean
+  error: ApiError | null
+  refetch: () => void
+}
+
+export function useSeller(enabled: boolean): SellerResult {
+  const [data, setData] = useState<Seller | null>(null)
+  const [loading, setLoading] = useState(enabled)
+  const [notFound, setNotFound] = useState(false)
+  const [error, setError] = useState<ApiError | null>(null)
+  const [tick, setTick] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) {
+      setData(null); setLoading(false); setNotFound(false); setError(null)
+      return
+    }
+    let cancelled = false
+    setLoading(true); setError(null); setNotFound(false)
+    apiGet<Seller>('/me/seller')
+      .then((res) => { if (!cancelled) setData(res) })
+      .catch((err: unknown) => {
+        if (cancelled) return
+        if (err instanceof ApiError && err.status === 404) {
+          setNotFound(true)
+          return
+        }
+        setError(err instanceof ApiError ? err : new ApiError(0, 'Unknown error'))
+      })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [enabled, tick])
+
+  const refetch = useCallback(() => setTick((t) => t + 1), [])
+  return { data, loading, notFound, error, refetch }
 }
 
 export interface MyOrdersParams {
