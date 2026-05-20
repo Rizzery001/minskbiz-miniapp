@@ -106,7 +106,18 @@ interface YMapsMap {
     add(event: string, handler: (e: YMapsEvent) => void): void
     remove(event: string, handler: (e: YMapsEvent) => void): void
   }
-  setCenter(coords: [number, number], zoom?: number): void
+  setCenter(
+    coords: [number, number],
+    zoom?: number,
+    options?: { duration?: number; checkZoomRange?: boolean },
+  ): void
+  panTo(
+    coords: [number, number],
+    options?: { flying?: boolean; duration?: number },
+  ): Promise<void>
+  getCenter(): [number, number]
+  getZoom(): number
+  getBounds(): [[number, number], [number, number]]
   destroy(): void
   container: {
     fitToViewport(): void
@@ -117,7 +128,12 @@ interface YMapsApi {
   ready(handler: () => void): void
   Map: new (
     container: HTMLElement | string,
-    state: { center: [number, number]; zoom: number; controls?: string[] },
+    state: {
+      center: [number, number]
+      zoom: number
+      controls?: string[]
+      behaviors?: string[]
+    },
     options?: Record<string, unknown>,
   ) => YMapsMap
   Placemark: new (
@@ -125,6 +141,17 @@ interface YMapsApi {
     properties?: Record<string, unknown>,
     options?: Record<string, unknown>,
   ) => YMapsPlacemark
+  // Distance between two geographic coordinates, in meters.
+  coordSystem: {
+    geo: {
+      getDistance(a: [number, number], b: [number, number]): number
+    }
+  }
+  // Factory for HTML-templated marker layouts. We pass the class result
+  // as `iconLayout` on Placemark options.
+  templateLayoutFactory: {
+    createClass(template: string): unknown
+  }
 }
 
 interface Window {

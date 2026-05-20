@@ -64,33 +64,6 @@ button {
   font-family: inherit;
 }
 
-.leaflet-container {
-  width: 100%;
-  height: 100%;
-  font-family: inherit;
-  background: var(--tg-secondary-bg);
-}
-
-.leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.7) !important;
-  color: #333 !important;
-  font-size: 10px !important;
-}
-
-[data-theme='dark'] .leaflet-control-attribution {
-  background: rgba(0, 0, 0, 0.5) !important;
-  color: #ccc !important;
-}
-
-[data-theme='dark'] .leaflet-control-attribution a {
-  color: #ccc !important;
-}
-
-.farmer-marker {
-  background: transparent;
-  border: none;
-}
-
 .scrollbar-hide {
   scrollbar-width: none;
   -ms-overflow-style: none;

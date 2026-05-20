@@ -1,81 +1,144 @@
-import L from 'leaflet'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { Listing } from '../../api/types'
 import ErrorState from '../../components/ErrorState'
 import { useListings, useUserMe } from '../../api/hooks'
-import {
-  getColorScheme,
-  hapticFeedback,
-  onThemeChanged,
-} from '../../lib/telegram'
+import { hapticFeedback } from '../../lib/telegram'
+import { useYandexMapsLoader } from '../../lib/yandexMaps'
 import FarmerSheet from './FarmerSheet'
 import LocateMeButton from './LocateMeButton'
 import SearchInput from './SearchInput'
 import { getCategoryStyle, normalizeCategory } from './categoryColors'
 
-function getPinCoords(listing: Listing): [number, number] | null {
-  if (
-    typeof listing.pin_lat === 'number' &&
-    Number.isFinite(listing.pin_lat) &&
-    typeof listing.pin_lng === 'number' &&
-    Number.isFinite(listing.pin_lng)
-  ) {
-    return [listing.pin_lat, listing.pin_lng]
-  }
-  if (
-    typeof listing.location_lat === 'number' &&
-    Number.isFinite(listing.location_lat) &&
-    typeof listing.location_lng === 'number' &&
-    Number.isFinite(listing.location_lng)
-  ) {
-    return [listing.location_lat, listing.location_lng]
-  }
-  return null
-}
-
-const MINSK_CENTER: [number, number] = [53.9, 27.5667]
-const INITIAL_ZOOM = 10
-const RECENTER_ZOOM = 11
+const MINSK_CENTER: [number, number] = [53.9006, 27.559]
+const INITIAL_ZOOM = 11
 const LOCATE_ZOOM = 14
+const FOCUS_ZOOM = 14
 const MIN_RADIUS_KM = 1
 const MAX_RADIUS_KM = 200
 const DEBOUNCE_MS = 400
 
-const TILE_URLS: Record<'light' | 'dark', string> = {
-  light: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?lang=ru',
-  dark: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?lang=ru',
-}
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
-
 function isValidLatLng(lat: unknown, lng: unknown): lat is number {
   return (
-    typeof lat === 'number' && Number.isFinite(lat) &&
-    typeof lng === 'number' && Number.isFinite(lng)
+    typeof lat === 'number' &&
+    Number.isFinite(lat) &&
+    typeof lng === 'number' &&
+    Number.isFinite(lng)
   )
 }
 
-function makeMarkerIcon(
+function getPinCoords(listing: Listing): [number, number] | null {
+  if (isValidLatLng(listing.pin_lat, listing.pin_lng)) {
+    return [listing.pin_lat as number, listing.pin_lng as number]
+  }
+  if (isValidLatLng(listing.location_lat, listing.location_lng)) {
+    return [listing.location_lat as number, listing.location_lng as number]
+  }
+  return null
+}
+
+function escapeHtml(input: string): string {
+  return input.replace(/[<>&"']/g, (c) => {
+    switch (c) {
+      case '<':
+        return '&lt;'
+      case '>':
+        return '&gt;'
+      case '&':
+        return '&amp;'
+      case '"':
+        return '&quot;'
+      case "'":
+        return '&#39;'
+      default:
+        return c
+    }
+  })
+}
+
+/**
+ * Build a Yandex Maps icon layout (templateLayoutFactory class) for a
+ * single farmer pin. Returns a class object the Placemark accepts via
+ * `iconLayout`.
+ *
+ * The layout is centred — translate(-50%, -50%) keeps the pin anchored
+ * at the exact lat/lng.
+ */
+function makeFarmerIconLayout(
+  api: YMapsApi,
   color: string,
   emoji: string,
   active: boolean,
-  theme: 'light' | 'dark',
-): L.DivIcon {
-  const safe = emoji.replace(/[<>&"']/g, '')
+): unknown {
+  const safeColor = escapeHtml(color)
+  const safeEmoji = escapeHtml(emoji)
   const size = active ? 44 : 36
   const fontSize = active ? 22 : 18
-  const borderColor = theme === 'dark' ? 'var(--tg-bg)' : '#ffffff'
-  const outline = active
-    ? 'box-shadow:0 0 0 3px var(--tg-link), 0 2px 6px rgba(0,0,0,0.25);'
-    : 'box-shadow:0 2px 4px rgba(0,0,0,0.15);'
-  const html = `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${color};border:3px solid ${borderColor};${outline}display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;line-height:1;">${safe}</div>`
-  return L.divIcon({
-    html,
-    className: 'farmer-marker',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  })
+  const shadow = active
+    ? '0 0 0 3px var(--tg-link), 0 2px 6px rgba(0,0,0,0.25)'
+    : '0 2px 4px rgba(0,0,0,0.15)'
+  const html = `
+    <div style="position:relative;width:0;height:0;">
+      <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:${size}px;height:${size}px;border-radius:50%;background:${safeColor};border:3px solid #ffffff;box-shadow:${shadow};display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;line-height:1;user-select:none;">
+        ${safeEmoji}
+      </div>
+    </div>
+  `
+  return api.templateLayoutFactory.createClass(html)
+}
+
+/**
+ * Pulsing blue dot for the buyer's own location.
+ */
+function makeUserLocationLayout(api: YMapsApi): unknown {
+  // CSS keyframes are injected once globally (see ensureUserLocationStyle).
+  const html = `
+    <div style="position:relative;width:0;height:0;">
+      <div class="krana-user-dot-pulse"></div>
+      <div class="krana-user-dot"></div>
+    </div>
+  `
+  return api.templateLayoutFactory.createClass(html)
+}
+
+const USER_DOT_STYLE_ID = 'krana-user-dot-style'
+
+function ensureUserLocationStyle(): void {
+  if (typeof document === 'undefined') return
+  if (document.getElementById(USER_DOT_STYLE_ID)) return
+  const style = document.createElement('style')
+  style.id = USER_DOT_STYLE_ID
+  style.textContent = `
+    .krana-user-dot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #2563eb;
+      border: 3px solid #ffffff;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      pointer-events: none;
+    }
+    .krana-user-dot-pulse {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: rgba(37, 99, 235, 0.35);
+      animation: krana-user-dot-pulse 1.8s ease-out infinite;
+      pointer-events: none;
+    }
+    @keyframes krana-user-dot-pulse {
+      0%   { width: 16px;  height: 16px;  opacity: 0.6; }
+      100% { width: 56px;  height: 56px;  opacity: 0;   }
+    }
+  `
+  document.head.appendChild(style)
 }
 
 interface ViewState {
@@ -84,137 +147,130 @@ interface ViewState {
   radius_km: number
 }
 
-interface ViewportTrackerProps {
-  onChange: (v: ViewState) => void
+interface SellerPin {
+  sellerId: string
+  sellerName: string
+  coords: [number, number]
+  category: string
+  emoji?: string
 }
 
-function ViewportTracker({ onChange }: ViewportTrackerProps) {
-  const map = useMap()
-
-  const compute = () => {
-    const c = map.getCenter()
-    const bounds = map.getBounds()
-    const ne = bounds.getNorthEast()
-    const halfDiag = c.distanceTo(ne) / 1000
-    const radius = Math.min(MAX_RADIUS_KM, Math.max(MIN_RADIUS_KM, Math.round(halfDiag)))
-    if (isValidLatLng(c.lat, c.lng)) {
-      onChange({ lat: c.lat, lng: c.lng, radius_km: radius })
-    }
-  }
-
-  useEffect(() => {
-    compute()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useMapEvents({
-    moveend: compute,
-    zoomend: compute,
-  })
-
-  return null
+interface MarkerEntry {
+  pm: YMapsPlacemark
+  active: boolean
 }
-
-interface MapInstanceCaptureProps {
-  onReady: (map: L.Map) => void
-}
-
-function MapInstanceCapture({ onReady }: MapInstanceCaptureProps) {
-  const map = useMap()
-  useEffect(() => {
-    onReady(map)
-  }, [map, onReady])
-  return null
-}
-
-interface MapSizeFixerProps {
-  initialCenter: [number, number]
-  recenterZoom: number
-}
-
-function MapSizeFixer({ initialCenter, recenterZoom }: MapSizeFixerProps) {
-  const map = useMap()
-  const initRef = useRef({ center: initialCenter, zoom: recenterZoom })
-  initRef.current = { center: initialCenter, zoom: recenterZoom }
-  const didInitRef = useRef(false)
-
-  useEffect(() => {
-    const container = map.getContainer()
-    const handleResize = () => map.invalidateSize()
-    const handleDblClick = (e: L.LeafletMouseEvent) => {
-      map.flyTo(e.latlng, map.getZoom() + 1.5, { duration: 0.3 })
-    }
-
-    const rafId = window.requestAnimationFrame(() => {
-      map.invalidateSize()
-      if (!didInitRef.current) {
-        didInitRef.current = true
-        const { center, zoom } = initRef.current
-        map.flyTo(center, zoom)
-      }
-    })
-
-    let observer: ResizeObserver | null = null
-    if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(handleResize)
-      observer.observe(container)
-    }
-    window.addEventListener('resize', handleResize)
-
-    map.doubleClickZoom.disable()
-    map.on('dblclick', handleDblClick)
-
-    return () => {
-      window.cancelAnimationFrame(rafId)
-      observer?.disconnect()
-      window.removeEventListener('resize', handleResize)
-      map.off('dblclick', handleDblClick)
-      map.doubleClickZoom.enable()
-    }
-  }, [map])
-
-  return null
-}
-
-const FOCUS_ZOOM = 14
 
 export default function FarmersMap() {
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set())
+  const { api, loading: mapLoading, error: mapError } = useYandexMapsLoader()
+
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<YMapsMap | null>(null)
+  const sellerMarkersRef = useRef<Map<string, MarkerEntry>>(new Map())
+  const userMarkerRef = useRef<YMapsPlacemark | null>(null)
+
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set(),
+  )
   const [view, setView] = useState<ViewState | null>(null)
   const [debouncedView, setDebouncedView] = useState<ViewState | null>(null)
   const [selectedSellerId, setSelectedSellerId] = useState<string | null>(null)
-  const [mapInstance, setMapInstance] = useState<L.Map | null>(null)
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getColorScheme)
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [focusedOfferId, setFocusedOfferId] = useState<string | null>(null)
+  const [liveUserCoords, setLiveUserCoords] = useState<
+    [number, number] | null
+  >(null)
   const focusHandledRef = useRef(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const targetOfferId = params.get('offer')
-    if (targetOfferId) {
-      setFocusedOfferId(targetOfferId)
-    }
+    if (targetOfferId) setFocusedOfferId(targetOfferId)
   }, [])
 
   const { data: user } = useUserMe()
 
-  useEffect(() => {
-    return onThemeChanged(() => setColorScheme(getColorScheme()))
-  }, [])
-
-  const userLocation = useMemo(() => {
+  // Combine the cached telegram-known location with whatever the
+  // LocateMeButton has surfaced. The live value wins when present.
+  const userLocation = useMemo<[number, number] | null>(() => {
+    if (liveUserCoords) return liveUserCoords
     const loc = user?.location
     if (!loc) return null
     if (!isValidLatLng(loc.lat, loc.lng)) return null
-    return { lat: loc.lat, lng: loc.lng }
-  }, [user])
+    return [loc.lat, loc.lng]
+  }, [user, liveUserCoords])
 
-  const initialCenter: [number, number] = userLocation
-    ? [userLocation.lat, userLocation.lng]
-    : MINSK_CENTER
+  const initialCenter: [number, number] = userLocation ?? MINSK_CENTER
 
+  // Use a ref to expose the latest setView to the map-once-init effect
+  // without re-creating the map every time view changes.
+  const onViewChangeRef = useRef(setView)
+  useEffect(() => {
+    onViewChangeRef.current = setView
+  }, [])
+
+  // Initialise the Yandex map once the API is loaded and the container
+  // is mounted. Destroys on unmount.
+  useEffect(() => {
+    if (!api) return
+    const container = containerRef.current
+    if (!container) return
+
+    ensureUserLocationStyle()
+
+    const map = new api.Map(
+      container,
+      { center: initialCenter, zoom: INITIAL_ZOOM, controls: [] },
+      { suppressMapOpenBlock: true },
+    )
+
+    const computeView = () => {
+      try {
+        const center = map.getCenter()
+        const bounds = map.getBounds()
+        // bounds = [[minLat, minLng], [maxLat, maxLng]] — north-east corner
+        // is `bounds[1]`. Distance from center to NE = half the diagonal.
+        const ne = bounds[1]
+        const distMeters = api.coordSystem.geo.getDistance(center, ne)
+        const radius = Math.min(
+          MAX_RADIUS_KM,
+          Math.max(MIN_RADIUS_KM, Math.round(distMeters / 1000)),
+        )
+        if (isValidLatLng(center[0], center[1])) {
+          onViewChangeRef.current({
+            lat: center[0],
+            lng: center[1],
+            radius_km: radius,
+          })
+        }
+      } catch {
+        // Ignore — map may not be fully laid out yet on first call.
+      }
+    }
+
+    map.events.add('boundschange', computeView)
+    // Schedule an initial compute after layout settles.
+    const rafId = window.requestAnimationFrame(() => {
+      map.container.fitToViewport()
+      computeView()
+    })
+
+    mapRef.current = map
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      map.events.remove('boundschange', computeView)
+      sellerMarkersRef.current.clear()
+      userMarkerRef.current = null
+      map.destroy()
+      mapRef.current = null
+    }
+    // initialCenter is intentionally captured once on first init; later
+    // recentering uses panTo. eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api])
+
+  // Debounce viewport changes before triggering the listings query.
   useEffect(() => {
     if (!view) return
     const t = window.setTimeout(() => setDebouncedView(view), DEBOUNCE_MS)
@@ -233,7 +289,11 @@ export default function FarmersMap() {
     refetch: refetchListings,
   } = useListings(
     debouncedView
-      ? { lat: debouncedView.lat, lng: debouncedView.lng, radius_km: debouncedView.radius_km }
+      ? {
+          lat: debouncedView.lat,
+          lng: debouncedView.lng,
+          radius_km: debouncedView.radius_km,
+        }
       : null,
   )
 
@@ -258,16 +318,8 @@ export default function FarmersMap() {
     })
   }, [listings, selectedCategories, debouncedQuery])
 
-  // Group visible listings by seller_id and pick the first listing per
-  // seller as the pin anchor. Backend sends the same pin_* coords for
-  // all listings of one seller, so any listing in the group works.
-  interface SellerPin {
-    sellerId: string
-    sellerName: string
-    coords: [number, number]
-    category: string
-    emoji?: string
-  }
+  // One pin per farm (group by seller_id). Backend sends the same
+  // pin_* coords across all listings of one seller — first one wins.
   const sellerPins = useMemo<SellerPin[]>(() => {
     const seen = new Set<string>()
     const pins: SellerPin[] = []
@@ -287,6 +339,106 @@ export default function FarmersMap() {
     return pins
   }, [visibleListings])
 
+  // Sync seller placemarks on the map whenever the desired set changes
+  // or the active selection changes. We track each placemark + its
+  // active-state to avoid rebuilding ones that haven't logically
+  // changed.
+  useEffect(() => {
+    if (!api) return
+    const map = mapRef.current
+    if (!map) return
+    const cache = sellerMarkersRef.current
+    const desired = new Set<string>()
+
+    for (const pin of sellerPins) {
+      desired.add(pin.sellerId)
+      const isActive = pin.sellerId === selectedSellerId
+      const current = cache.get(pin.sellerId)
+      if (current && current.active === isActive) continue
+
+      if (current) {
+        map.geoObjects.remove(current.pm)
+      }
+
+      const style = getCategoryStyle(pin.category)
+      const emoji = pin.emoji ?? style.emoji
+      const layout = makeFarmerIconLayout(api, style.color, emoji, isActive)
+      const pm = new api.Placemark(
+        pin.coords,
+        {},
+        {
+          iconLayout: layout,
+          iconShape: {
+            type: 'Circle',
+            coordinates: [0, 0],
+            radius: isActive ? 22 : 18,
+          },
+          zIndex: isActive ? 1000 : 700,
+        },
+      )
+      const sellerId = pin.sellerId
+      const handleClick = () => {
+        hapticFeedback.light()
+        setSelectedSellerId(sellerId)
+      }
+      pm.events.add('click', handleClick)
+      map.geoObjects.add(pm)
+      cache.set(sellerId, { pm, active: isActive })
+    }
+
+    for (const [id, entry] of cache) {
+      if (!desired.has(id)) {
+        map.geoObjects.remove(entry.pm)
+        cache.delete(id)
+      }
+    }
+  }, [api, sellerPins, selectedSellerId])
+
+  // Sync the user-location placemark (blue pulsing dot).
+  useEffect(() => {
+    if (!api) return
+    const map = mapRef.current
+    if (!map) return
+
+    if (!userLocation) {
+      if (userMarkerRef.current) {
+        map.geoObjects.remove(userMarkerRef.current)
+        userMarkerRef.current = null
+      }
+      return
+    }
+
+    const existing = userMarkerRef.current
+    if (existing) {
+      existing.geometry.setCoordinates(userLocation)
+      return
+    }
+
+    const pm = new api.Placemark(
+      userLocation,
+      {},
+      {
+        iconLayout: makeUserLocationLayout(api),
+        iconShape: { type: 'Circle', coordinates: [0, 0], radius: 8 },
+        zIndex: 600,
+      },
+    )
+    map.geoObjects.add(pm)
+    userMarkerRef.current = pm
+  }, [api, userLocation])
+
+  // Recenter the map to the user when location first becomes known
+  // (only on initial reveal — don't fight subsequent map panning by
+  // the user).
+  const didRecenterToUserRef = useRef(false)
+  useEffect(() => {
+    if (didRecenterToUserRef.current) return
+    if (!api || !mapRef.current) return
+    if (!userLocation) return
+    didRecenterToUserRef.current = true
+    void mapRef.current.panTo(userLocation, { duration: 300 })
+  }, [api, userLocation])
+
   const availableCategories = useMemo<string[]>(() => {
     if (!listings) return []
     const set = new Set<string>()
@@ -303,16 +455,17 @@ export default function FarmersMap() {
     })
   }
 
-  const handleLocate = useCallback(
-    (coords: [number, number]) => {
-      if (!mapInstance) return
-      mapInstance.flyTo(coords, LOCATE_ZOOM)
-    },
-    [mapInstance],
-  )
+  const handleLocate = useCallback((coords: [number, number]) => {
+    setLiveUserCoords(coords)
+    const map = mapRef.current
+    if (!map) return
+    map.setCenter(coords, LOCATE_ZOOM, { duration: 300 })
+  }, [])
 
   const closeSheet = useCallback(() => setSelectedSellerId(null), [])
 
+  // Deep-link: if ?offer=<id> is set, fly to that seller's pin and open
+  // the sheet once listings arrive.
   useEffect(() => {
     if (focusHandledRef.current) return
     if (!focusedOfferId) return
@@ -321,62 +474,49 @@ export default function FarmersMap() {
     if (!target) return
     focusHandledRef.current = true
     const targetCoords = getPinCoords(target)
-    if (mapInstance && targetCoords) {
-      mapInstance.flyTo(targetCoords, FOCUS_ZOOM)
+    const map = mapRef.current
+    if (map && targetCoords) {
+      map.setCenter(targetCoords, FOCUS_ZOOM, { duration: 300 })
     }
     setSelectedSellerId(target.seller_id)
     const url = new URL(window.location.href)
     url.searchParams.delete('offer')
     window.history.replaceState({}, '', url.toString())
-  }, [focusedOfferId, listings, mapInstance])
+  }, [focusedOfferId, listings])
 
   const clearFocusedOffer = useCallback(() => setFocusedOfferId(null), [])
 
+  if (mapError) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center"
+        style={{ backgroundColor: 'var(--tg-bg)' }}
+      >
+        <ErrorState
+          title="Не удалось загрузить карту"
+          message="Не удалось загрузить карту, проверьте подключение."
+          onRetry={() => window.location.reload()}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="relative w-full h-full" style={{ minHeight: 0 }}>
-      <MapContainer
-        center={initialCenter}
-        zoom={INITIAL_ZOOM}
-        minZoom={6}
-        maxZoom={18}
-        zoomSnap={0}
-        wheelPxPerZoomLevel={60}
-        zoomAnimationThreshold={4}
-        fadeAnimation={true}
-        markerZoomAnimation={true}
-        scrollWheelZoom
-        touchZoom
-        zoomControl={false}
-        className="w-full h-full"
-      >
-        <TileLayer
-          key={colorScheme}
-          attribution={TILE_ATTRIBUTION}
-          url={TILE_URLS[colorScheme]}
-        />
-        <ViewportTracker onChange={setView} />
-        <MapInstanceCapture onReady={setMapInstance} />
-        <MapSizeFixer initialCenter={initialCenter} recenterZoom={RECENTER_ZOOM} />
-        {sellerPins.map((pin) => {
-          const style = getCategoryStyle(pin.category)
-          const emoji = pin.emoji ?? style.emoji
-          const isActive = pin.sellerId === selectedSellerId
-          return (
-            <Marker
-              key={pin.sellerId}
-              position={pin.coords}
-              icon={makeMarkerIcon(style.color, emoji, isActive, colorScheme)}
-              zIndexOffset={isActive ? 1000 : 0}
-              eventHandlers={{
-                click: () => {
-                  hapticFeedback.light()
-                  setSelectedSellerId(pin.sellerId)
-                },
-              }}
-            />
-          )
-        })}
-      </MapContainer>
+      <div ref={containerRef} className="absolute inset-0 w-full h-full" />
+
+      {mapLoading && (
+        <div
+          className="absolute inset-0 z-[900] flex items-center justify-center"
+          style={{
+            backgroundColor: 'var(--tg-bg)',
+            color: 'var(--tg-hint)',
+            fontSize: 13,
+          }}
+        >
+          Загружаем карту…
+        </div>
+      )}
 
       {/* Floating status panel */}
       <div
@@ -429,13 +569,18 @@ export default function FarmersMap() {
                   className="flex items-center gap-1.5 rounded-full whitespace-nowrap active:opacity-70 active:scale-[0.97] transition"
                   style={{
                     padding: '6px 12px',
-                    backgroundColor: active ? 'var(--tg-link)' : 'var(--tg-secondary-bg)',
+                    backgroundColor: active
+                      ? 'var(--tg-link)'
+                      : 'var(--tg-secondary-bg)',
                     color: active ? '#ffffff' : 'var(--tg-text)',
                     fontSize: 13,
                     transitionDuration: '150ms',
                   }}
                 >
-                  <span style={{ fontSize: 14, lineHeight: 1 }} aria-hidden="true">
+                  <span
+                    style={{ fontSize: 14, lineHeight: 1 }}
+                    aria-hidden="true"
+                  >
                     {style.emoji}
                   </span>
                   <span>{style.label}</span>
