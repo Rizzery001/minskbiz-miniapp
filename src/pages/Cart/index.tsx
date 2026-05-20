@@ -48,12 +48,19 @@ export default function Cart() {
     if (cart.length === 0 || submitting) return
     hapticFeedback.warning()
     setSubmitting(true)
+    // One cart_id per checkout. Backend uses this to group N orders
+    // into a single notification to the supplier and the buyer.
+    const cartId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `cart_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
     try {
       const settled = await Promise.allSettled(
         cart.map((item) =>
           apiPost<OrderResponse>('/orders', {
             listing_id: item.listing_id,
             quantity: item.quantity,
+            cart_id: cartId,
           }),
         ),
       )
