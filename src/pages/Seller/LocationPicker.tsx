@@ -1,47 +1,6 @@
-import L from 'leaflet'
-import { useEffect, useState } from 'react'
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-leaflet'
-import { getColorScheme, hapticFeedback, onThemeChanged } from '../../lib/telegram'
-
-const TILE_URLS: Record<'light' | 'dark', string> = {
-  light: 'https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png?lang=ru',
-  dark: 'https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png?lang=ru',
-}
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
-
-function makeIcon(theme: 'light' | 'dark'): L.DivIcon {
-  const borderColor = theme === 'dark' ? 'var(--tg-bg)' : '#ffffff'
-  const html = `<div style="width:36px;height:36px;border-radius:50%;background:var(--tg-link);border:3px solid ${borderColor};box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;">📍</div>`
-  return L.divIcon({
-    html,
-    className: 'farmer-marker',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-  })
-}
-
-interface ClickHandlerProps {
-  onClick: (lat: number, lng: number) => void
-}
-
-function ClickHandler({ onClick }: ClickHandlerProps) {
-  useMapEvents({
-    click(e) {
-      onClick(e.latlng.lat, e.latlng.lng)
-    },
-  })
-  return null
-}
-
-function SizeFixer() {
-  const map = useMap()
-  useEffect(() => {
-    const id = window.requestAnimationFrame(() => map.invalidateSize())
-    return () => window.cancelAnimationFrame(id)
-  }, [map])
-  return null
-}
+import { useEffect, useRef } from 'react'
+import { hapticFeedback } from '../../lib/telegram'
+import { useYandexMapsLoader } from '../../lib/yandexMaps'
 
 interface Props {
   lat: number
@@ -49,54 +8,122 @@ interface Props {
   onChange: (lat: number, lng: number) => void
 }
 
+const MAP_HEIGHT = 320
+
 export default function LocationPicker({ lat, lng, onChange }: Props) {
-  const [colorScheme, setColorScheme] = useState<'light' | 'dark'>(getColorScheme)
-
+  const { api, loading, error } = useYandexMapsLoader()
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const mapRef = useRef<YMapsMap | null>(null)
+  const placemarkRef = useRef<YMapsPlacemark | null>(null)
+  // Keep the latest onChange in a ref so we don't have to re-bind the
+  // dragend listener (which would also remount the map).
+  const onChangeRef = useRef(onChange)
   useEffect(() => {
-    return onThemeChanged(() => setColorScheme(getColorScheme()))
-  }, [])
+    onChangeRef.current = onChange
+  }, [onChange])
 
-  const handleDragEnd = (e: L.LeafletEvent) => {
-    const marker = e.target as L.Marker
-    const pos = marker.getLatLng()
-    hapticFeedback.light()
-    onChange(pos.lat, pos.lng)
-  }
+  // Create the map exactly once, after the API is loaded.
+  useEffect(() => {
+    if (!api) return
+    const container = containerRef.current
+    if (!container) return
 
-  const handleMapClick = (newLat: number, newLng: number) => {
-    hapticFeedback.light()
-    onChange(newLat, newLng)
+    const map = new api.Map(
+      container,
+      { center: [lat, lng], zoom: 14, controls: ['zoomControl'] },
+      { suppressMapOpenBlock: true },
+    )
+    const placemark = new api.Placemark(
+      [lat, lng],
+      {},
+      { draggable: true, preset: 'islands#redDotIcon' },
+    )
+
+    const handleDragEnd = (e: YMapsEvent) => {
+      const target = e.get('target')
+      const coords = target.geometry.getCoordinates()
+      const newLat = coords[0]
+      const newLng = coords[1]
+      hapticFeedback.light()
+      onChangeRef.current(newLat, newLng)
+    }
+
+    const handleMapClick = (e: YMapsEvent) => {
+      const coords = e.get('coords')
+      if (!Array.isArray(coords) || coords.length < 2) return
+      const newLat = coords[0]
+      const newLng = coords[1]
+      placemark.geometry.setCoordinates([newLat, newLng])
+      hapticFeedback.light()
+      onChangeRef.current(newLat, newLng)
+    }
+
+    placemark.events.add('dragend', handleDragEnd)
+    map.events.add('click', handleMapClick)
+    map.geoObjects.add(placemark)
+
+    mapRef.current = map
+    placemarkRef.current = placemark
+
+    return () => {
+      placemark.events.remove('dragend', handleDragEnd)
+      map.events.remove('click', handleMapClick)
+      map.destroy()
+      mapRef.current = null
+      placemarkRef.current = null
+    }
+    // We intentionally exclude lat/lng — they are syncing via the next effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api])
+
+  // Keep map/placemark in sync if the parent updates coords (e.g. after
+  // a geocoder pick). We avoid feedback loops by comparing values.
+  useEffect(() => {
+    const placemark = placemarkRef.current
+    const map = mapRef.current
+    if (!placemark || !map) return
+    const current = placemark.geometry as { getCoordinates?: () => [number, number] }
+    const cur = current.getCoordinates?.()
+    if (cur && cur[0] === lat && cur[1] === lng) return
+    placemark.geometry.setCoordinates([lat, lng])
+    map.setCenter([lat, lng])
+  }, [lat, lng])
+
+  if (error) {
+    return (
+      <div
+        className="rounded-xl flex items-center justify-center p-4 text-center"
+        style={{
+          height: MAP_HEIGHT,
+          backgroundColor: 'var(--tg-secondary-bg)',
+          border: '1px solid var(--tg-hairline)',
+          color: 'var(--tg-hint)',
+          fontSize: 13,
+        }}
+      >
+        Не удалось загрузить карту, проверьте подключение.
+      </div>
+    )
   }
 
   return (
     <div
-      className="rounded-xl overflow-hidden"
-      style={{ height: 240, border: '1px solid var(--tg-hairline)' }}
+      className="rounded-xl overflow-hidden relative"
+      style={{
+        height: MAP_HEIGHT,
+        border: '1px solid var(--tg-hairline)',
+        backgroundColor: 'var(--tg-secondary-bg)',
+      }}
     >
-      <MapContainer
-        center={[lat, lng]}
-        zoom={14}
-        minZoom={6}
-        maxZoom={18}
-        scrollWheelZoom
-        touchZoom
-        zoomControl
-        className="w-full h-full"
-      >
-        <TileLayer
-          key={colorScheme}
-          attribution={TILE_ATTRIBUTION}
-          url={TILE_URLS[colorScheme]}
-        />
-        <SizeFixer />
-        <ClickHandler onClick={handleMapClick} />
-        <Marker
-          position={[lat, lng]}
-          draggable
-          icon={makeIcon(colorScheme)}
-          eventHandlers={{ dragend: handleDragEnd }}
-        />
-      </MapContainer>
+      <div ref={containerRef} className="w-full h-full" />
+      {loading && (
+        <div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ color: 'var(--tg-hint)', fontSize: 13 }}
+        >
+          Загружаем карту…
+        </div>
+      )}
     </div>
   )
 }

@@ -71,8 +71,62 @@ interface Window {
 interface ImportMetaEnv {
   readonly VITE_API_BASE: string
   readonly VITE_DEV_INIT_DATA?: string
+  readonly VITE_YANDEX_MAPS_API_KEY?: string
+  readonly VITE_YANDEX_SUGGEST_API_KEY?: string
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv
+}
+
+interface YMapsEventTarget {
+  geometry: { getCoordinates(): [number, number] }
+}
+
+interface YMapsEvent {
+  get(key: 'target'): YMapsEventTarget
+  get(key: 'coords'): [number, number]
+  get(key: string): unknown
+}
+
+interface YMapsPlacemark {
+  geometry: { setCoordinates(coords: [number, number]): void }
+  events: {
+    add(event: string, handler: (e: YMapsEvent) => void): void
+    remove(event: string, handler: (e: YMapsEvent) => void): void
+  }
+}
+
+interface YMapsMap {
+  geoObjects: {
+    add(obj: YMapsPlacemark): void
+    remove(obj: YMapsPlacemark): void
+  }
+  events: {
+    add(event: string, handler: (e: YMapsEvent) => void): void
+    remove(event: string, handler: (e: YMapsEvent) => void): void
+  }
+  setCenter(coords: [number, number], zoom?: number): void
+  destroy(): void
+  container: {
+    fitToViewport(): void
+  }
+}
+
+interface YMapsApi {
+  ready(handler: () => void): void
+  Map: new (
+    container: HTMLElement | string,
+    state: { center: [number, number]; zoom: number; controls?: string[] },
+    options?: Record<string, unknown>,
+  ) => YMapsMap
+  Placemark: new (
+    coords: [number, number],
+    properties?: Record<string, unknown>,
+    options?: Record<string, unknown>,
+  ) => YMapsPlacemark
+}
+
+interface Window {
+  ymaps?: YMapsApi
 }

@@ -65,23 +65,49 @@ export type SellerCategory =
   | 'fruits'
   | 'other'
 
+export interface SellingPoint {
+  label: string
+  address?: string | null
+  lat: number
+  lng: number
+  schedule?: string | null
+}
+
 export interface Seller {
   seller_id: string
   name: string
   category: SellerCategory | string
   phone: string
-  location_lat: number
-  location_lng: number
+  // Legacy fields (kept for backwards compatibility with older sellers
+  // that still have a single location).
+  location_lat?: number
+  location_lng?: number
   location_label?: string | null
+  home_address?: string | null
+  home_lat?: number | null
+  home_lng?: number | null
+  selling_points?: SellingPoint[]
 }
 
 export interface SellerCreatePayload {
   name: string
   category: SellerCategory
   phone: string
-  location_lat: number
-  location_lng: number
-  location_label?: string
+  home_address?: string
+  home_lat?: number
+  home_lng?: number
+  selling_points: SellingPoint[]
+}
+
+export interface GeocodeResult {
+  label: string
+  lat: number
+  lng: number
+  kind?: string
+}
+
+export interface GeocodeResponse {
+  results: GeocodeResult[]
 }
 
 export interface SellerCreateResponse {

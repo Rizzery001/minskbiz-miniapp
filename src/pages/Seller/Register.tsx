@@ -1,37 +1,72 @@
-import { ChevronLeft, MapPin } from 'lucide-react'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { ChevronLeft, MapPin, Plus, X } from 'lucide-react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, apiPost } from '../../api/client'
 import type {
+  GeocodeResult,
   SellerCategory,
   SellerCreatePayload,
   SellerCreateResponse,
+  SellingPoint,
 } from '../../api/types'
 import { backButton, hapticFeedback } from '../../lib/telegram'
+import AddressSearch from './AddressSearch'
 import { SELLER_CATEGORIES } from './categories'
 import { isPhoneValid, normalizePhone } from './phone'
 
 const LocationPicker = lazy(() => import('./LocationPicker'))
 
-interface Coords {
-  lat: number
-  lng: number
+interface SellingPointDraft {
+  id: string
+  label: string
+  address: string
+  lat: number | null
+  lng: number | null
+  schedule: string
+}
+
+function newPointId(): string {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return crypto.randomUUID()
+  }
+  return `sp_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`
+}
+
+function emptyPoint(): SellingPointDraft {
+  return {
+    id: newPointId(),
+    label: '',
+    address: '',
+    lat: null,
+    lng: null,
+    schedule: '',
+  }
 }
 
 function formatCoord(n: number): string {
   return n.toFixed(5)
 }
 
+function isPointReady(p: SellingPointDraft): boolean {
+  return p.label.trim().length > 0 && p.lat !== null && p.lng !== null
+}
+
 export default function SellerRegister() {
   const navigate = useNavigate()
   const [name, setName] = useState('')
   const [category, setCategory] = useState<SellerCategory | null>(null)
-  const [coords, setCoords] = useState<Coords | null>(null)
-  const [locationLabel, setLocationLabel] = useState('')
-  const [showPicker, setShowPicker] = useState(false)
-  const [geoLoading, setGeoLoading] = useState(false)
-  const [geoError, setGeoError] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
+  const [points, setPoints] = useState<SellingPointDraft[]>(() => [emptyPoint()])
+
+  // Optional home address for the farm itself.
+  const [homeEnabled, setHomeEnabled] = useState(false)
+  const [homeAddress, setHomeAddress] = useState('')
+  const [homeCoords, setHomeCoords] = useState<{ lat: number; lng: number } | null>(
+    null,
+  )
+  const [homeGeoLoading, setHomeGeoLoading] = useState(false)
+  const [homeGeoError, setHomeGeoError] = useState<string | null>(null)
+
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
 
@@ -46,52 +81,102 @@ export default function SellerRegister() {
     }
   }, [goBack])
 
-  const requestGeolocation = useCallback(() => {
+  const requestHomeGeolocation = useCallback(() => {
     if (!('geolocation' in navigator)) {
-      setGeoError('Геолокация не поддерживается этим устройством')
+      setHomeGeoError('Геолокация не поддерживается этим устройством')
       return
     }
-    setGeoLoading(true)
-    setGeoError(null)
+    setHomeGeoLoading(true)
+    setHomeGeoError(null)
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         hapticFeedback.success()
-        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
-        setGeoLoading(false)
+        setHomeCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+        setHomeGeoLoading(false)
       },
       (err) => {
         hapticFeedback.error()
         const msg =
           err.code === err.PERMISSION_DENIED
-            ? 'Доступ к геолокации запрещён. Можно выбрать точку на карте.'
-            : 'Не удалось определить локацию. Попробуйте ещё раз или выберите точку на карте.'
-        setGeoError(msg)
-        setGeoLoading(false)
+            ? 'Доступ к геолокации запрещён.'
+            : 'Не удалось определить локацию. Попробуйте ещё раз.'
+        setHomeGeoError(msg)
+        setHomeGeoLoading(false)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
     )
   }, [])
 
+  const updatePoint = useCallback(
+    (id: string, patch: Partial<SellingPointDraft>) => {
+      setPoints((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
+      )
+    },
+    [],
+  )
+
+  const addPoint = useCallback(() => {
+    hapticFeedback.light()
+    setPoints((prev) => [...prev, emptyPoint()])
+  }, [])
+
+  const removePoint = useCallback((id: string) => {
+    hapticFeedback.light()
+    setPoints((prev) => prev.filter((p) => p.id !== id))
+  }, [])
+
   const trimmedName = name.trim()
   const nameValid = trimmedName.length >= 2 && trimmedName.length <= 100
   const phoneValid = isPhoneValid(phone)
+  const pointsValid = points.length >= 1 && points.every(isPointReady)
   const canSubmit =
-    nameValid && category !== null && coords !== null && phoneValid && !submitting
+    nameValid && category !== null && phoneValid && pointsValid && !submitting
+
+  const submitDisabledReason = useMemo(() => {
+    if (submitting) return null
+    if (!nameValid) return 'Укажите название фермы (2–100 символов)'
+    if (category === null) return 'Выберите категорию'
+    if (!phoneValid) return 'Укажите телефон минимум из 7 цифр'
+    if (points.length === 0) return 'Добавьте хотя бы одно место продажи'
+    if (!pointsValid) {
+      return 'У каждой точки должно быть название и координаты на карте'
+    }
+    return null
+  }, [submitting, nameValid, category, phoneValid, points.length, pointsValid])
 
   const handleSubmit = async () => {
-    if (!canSubmit || !category || !coords) return
+    if (!canSubmit || !category) return
     setSubmitting(true)
     setSubmitError(null)
     hapticFeedback.medium()
+
+    const sellingPoints: SellingPoint[] = points.map((p) => {
+      const sp: SellingPoint = {
+        label: p.label.trim(),
+        lat: p.lat as number,
+        lng: p.lng as number,
+      }
+      const addr = p.address.trim()
+      if (addr) sp.address = addr
+      const sched = p.schedule.trim()
+      if (sched) sp.schedule = sched
+      return sp
+    })
+
     const payload: SellerCreatePayload = {
       name: trimmedName,
       category,
       phone: normalizePhone(phone),
-      location_lat: coords.lat,
-      location_lng: coords.lng,
+      selling_points: sellingPoints,
     }
-    const label = locationLabel.trim()
-    if (label) payload.location_label = label
+    if (homeEnabled && homeCoords) {
+      payload.home_lat = homeCoords.lat
+      payload.home_lng = homeCoords.lng
+      const homeAddr = homeAddress.trim()
+      if (homeAddr) payload.home_address = homeAddr
+    }
+
     try {
       await apiPost<SellerCreateResponse>('/me/seller', payload)
       hapticFeedback.success()
@@ -187,118 +272,6 @@ export default function SellerRegister() {
           </div>
         </Field>
 
-        <Field label="Локация">
-          {!coords ? (
-            <button
-              type="button"
-              onClick={requestGeolocation}
-              disabled={geoLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 rounded-lg active:opacity-80 transition disabled:opacity-60"
-              style={{
-                backgroundColor: 'var(--tg-secondary-bg)',
-                color: 'var(--tg-link)',
-                border: '1px solid var(--tg-hairline)',
-                fontSize: 15,
-                fontWeight: 500,
-                transitionDuration: '150ms',
-              }}
-            >
-              <MapPin size={18} strokeWidth={2} aria-hidden="true" />
-              <span>
-                {geoLoading
-                  ? 'Определяем…'
-                  : 'Определить мою локацию'}
-              </span>
-            </button>
-          ) : (
-            <div
-              className="rounded-lg p-3"
-              style={{
-                backgroundColor: 'var(--tg-secondary-bg)',
-                border: '1px solid var(--tg-hairline)',
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <MapPin
-                  size={18}
-                  strokeWidth={2}
-                  style={{ color: 'var(--tg-link)' }}
-                  aria-hidden="true"
-                />
-                <span
-                  className="tabular-nums"
-                  style={{ fontSize: 14, color: 'var(--tg-text)' }}
-                >
-                  {formatCoord(coords.lat)}, {formatCoord(coords.lng)}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowPicker((v) => !v)}
-                className="mt-2 active:opacity-70 transition"
-                style={{
-                  color: 'var(--tg-link)',
-                  fontSize: 13,
-                  transitionDuration: '150ms',
-                }}
-              >
-                {showPicker ? 'Скрыть карту' : 'Выбрать другую точку'}
-              </button>
-            </div>
-          )}
-          {geoError && <FieldError>{geoError}</FieldError>}
-          {coords && showPicker && (
-            <div className="mt-3">
-              <Suspense
-                fallback={
-                  <div
-                    className="rounded-xl"
-                    style={{
-                      height: 240,
-                      backgroundColor: 'var(--tg-secondary-bg)',
-                    }}
-                  />
-                }
-              >
-                <LocationPicker
-                  lat={coords.lat}
-                  lng={coords.lng}
-                  onChange={(lat, lng) => setCoords({ lat, lng })}
-                />
-              </Suspense>
-              <p
-                className="mt-2"
-                style={{ fontSize: 12, color: 'var(--tg-hint)' }}
-              >
-                Перетащите маркер или нажмите на карту, чтобы выбрать точку.
-              </p>
-            </div>
-          )}
-          {coords && (
-            <div className="mt-3">
-              <label
-                className="block mb-1"
-                style={{ fontSize: 13, color: 'var(--tg-hint)' }}
-              >
-                Адрес (необязательно)
-              </label>
-              <input
-                type="text"
-                value={locationLabel}
-                onChange={(e) => setLocationLabel(e.target.value)}
-                placeholder="Например: д. Лесное, Минский р-н"
-                className="w-full rounded-lg px-3 py-3 outline-none"
-                style={{
-                  backgroundColor: 'var(--tg-secondary-bg)',
-                  color: 'var(--tg-text)',
-                  fontSize: 15,
-                  border: '1px solid var(--tg-hairline)',
-                }}
-              />
-            </div>
-          )}
-        </Field>
-
         <Field label="Телефон" hint="Минимум 7 цифр">
           <input
             type="tel"
@@ -320,6 +293,166 @@ export default function SellerRegister() {
           )}
         </Field>
 
+        <section>
+          <div className="mb-2">
+            <h2
+              className="font-semibold"
+              style={{ fontSize: 16, color: 'var(--tg-text)' }}
+            >
+              📍 Места продажи
+            </h2>
+            <p
+              className="mt-1"
+              style={{ fontSize: 13, color: 'var(--tg-hint)', lineHeight: 1.4 }}
+            >
+              Где вы продаёте? Можно несколько мест.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {points.map((point, idx) => (
+              <SellingPointCard
+                key={point.id}
+                index={idx}
+                point={point}
+                canRemove={points.length > 1}
+                onChange={(patch) => updatePoint(point.id, patch)}
+                onRemove={() => removePoint(point.id)}
+              />
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={addPoint}
+            className="mt-3 w-full flex items-center justify-center gap-2 py-3 rounded-lg active:opacity-80 transition"
+            style={{
+              backgroundColor: 'var(--tg-secondary-bg)',
+              color: 'var(--tg-link)',
+              border: '1px dashed var(--tg-hairline)',
+              fontSize: 14,
+              fontWeight: 500,
+              transitionDuration: '150ms',
+            }}
+          >
+            <Plus size={16} strokeWidth={2} aria-hidden="true" />
+            <span>Добавить место продажи</span>
+          </button>
+        </section>
+
+        <section>
+          <label
+            className="flex items-start gap-3 cursor-pointer active:opacity-80 transition"
+            style={{ transitionDuration: '150ms' }}
+          >
+            <input
+              type="checkbox"
+              checked={homeEnabled}
+              onChange={(e) => {
+                setHomeEnabled(e.target.checked)
+                if (!e.target.checked) {
+                  setHomeCoords(null)
+                  setHomeAddress('')
+                  setHomeGeoError(null)
+                }
+              }}
+              className="mt-0.5"
+              style={{ width: 18, height: 18 }}
+            />
+            <div className="flex-1">
+              <div
+                className="font-medium"
+                style={{ fontSize: 14, color: 'var(--tg-text)' }}
+              >
+                Указать также адрес самой фермы
+              </div>
+              <div
+                className="mt-0.5"
+                style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+              >
+                Необязательно. Помогает находить вас на карте поставщиков.
+              </div>
+            </div>
+          </label>
+
+          {homeEnabled && (
+            <div className="mt-3 flex flex-col gap-3">
+              <input
+                type="text"
+                value={homeAddress}
+                onChange={(e) => setHomeAddress(e.target.value)}
+                placeholder="Адрес фермы (необязательно)"
+                className="w-full rounded-lg px-3 py-3 outline-none"
+                style={{
+                  backgroundColor: 'var(--tg-secondary-bg)',
+                  color: 'var(--tg-text)',
+                  fontSize: 15,
+                  border: '1px solid var(--tg-hairline)',
+                }}
+              />
+              {!homeCoords ? (
+                <button
+                  type="button"
+                  onClick={requestHomeGeolocation}
+                  disabled={homeGeoLoading}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg active:opacity-80 transition disabled:opacity-60"
+                  style={{
+                    backgroundColor: 'var(--tg-secondary-bg)',
+                    color: 'var(--tg-link)',
+                    border: '1px solid var(--tg-hairline)',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    transitionDuration: '150ms',
+                  }}
+                >
+                  <MapPin size={16} strokeWidth={2} aria-hidden="true" />
+                  <span>
+                    {homeGeoLoading
+                      ? 'Определяем…'
+                      : 'Определить мою локацию'}
+                  </span>
+                </button>
+              ) : (
+                <div
+                  className="rounded-lg p-3 flex items-center justify-between gap-2"
+                  style={{
+                    backgroundColor: 'var(--tg-secondary-bg)',
+                    border: '1px solid var(--tg-hairline)',
+                  }}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin
+                      size={16}
+                      strokeWidth={2}
+                      style={{ color: 'var(--tg-link)' }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className="tabular-nums truncate"
+                      style={{ fontSize: 13, color: 'var(--tg-text)' }}
+                    >
+                      {formatCoord(homeCoords.lat)}, {formatCoord(homeCoords.lng)}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setHomeCoords(null)}
+                    className="shrink-0 active:opacity-70 transition"
+                    style={{
+                      color: 'var(--tg-link)',
+                      fontSize: 13,
+                      transitionDuration: '150ms',
+                    }}
+                  >
+                    Сбросить
+                  </button>
+                </div>
+              )}
+              {homeGeoError && <FieldError>{homeGeoError}</FieldError>}
+            </div>
+          )}
+        </section>
+
         {submitError && (
           <div
             className="rounded-lg p-3"
@@ -331,6 +464,15 @@ export default function SellerRegister() {
           >
             {submitError}
           </div>
+        )}
+
+        {submitDisabledReason && !submitError && (
+          <p
+            className="text-center"
+            style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+          >
+            {submitDisabledReason}
+          </p>
         )}
 
         <button
@@ -349,6 +491,155 @@ export default function SellerRegister() {
         </button>
       </div>
     </div>
+  )
+}
+
+interface SellingPointCardProps {
+  index: number
+  point: SellingPointDraft
+  canRemove: boolean
+  onChange: (patch: Partial<SellingPointDraft>) => void
+  onRemove: () => void
+}
+
+function SellingPointCard({
+  index,
+  point,
+  canRemove,
+  onChange,
+  onRemove,
+}: SellingPointCardProps) {
+  const handleGeocodePick = (result: GeocodeResult) => {
+    onChange({
+      address: result.label,
+      lat: result.lat,
+      lng: result.lng,
+    })
+  }
+
+  const handleMapDrag = (lat: number, lng: number) => {
+    onChange({ lat, lng })
+  }
+
+  return (
+    <article
+      className="rounded-xl"
+      style={{
+        backgroundColor: 'var(--tg-section-bg, var(--tg-bg))',
+        border: '1px solid var(--tg-hairline)',
+        padding: 14,
+      }}
+    >
+      <header className="flex items-center justify-between mb-3 gap-2">
+        <span
+          className="font-medium"
+          style={{ fontSize: 14, color: 'var(--tg-hint)' }}
+        >
+          Место №{index + 1}
+        </span>
+        {canRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Удалить эту точку"
+            className="flex items-center gap-1 active:opacity-70 transition"
+            style={{
+              color: 'var(--tg-destructive-text, #ff3b30)',
+              fontSize: 13,
+              transitionDuration: '150ms',
+            }}
+          >
+            <X size={14} strokeWidth={2} aria-hidden="true" />
+            <span>Удалить</span>
+          </button>
+        )}
+      </header>
+
+      <div className="flex flex-col gap-3">
+        <div>
+          <label
+            className="block mb-1"
+            style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+          >
+            Название
+          </label>
+          <input
+            type="text"
+            value={point.label}
+            onChange={(e) => onChange({ label: e.target.value })}
+            placeholder="Например, Комаровский рынок"
+            className="w-full rounded-lg px-3 py-3 outline-none"
+            style={{
+              backgroundColor: 'var(--tg-secondary-bg)',
+              color: 'var(--tg-text)',
+              fontSize: 15,
+              border: '1px solid var(--tg-hairline)',
+            }}
+          />
+        </div>
+
+        <div>
+          <label
+            className="block mb-1"
+            style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+          >
+            Адрес
+          </label>
+          <AddressSearch onPick={handleGeocodePick} />
+        </div>
+
+        {point.lat !== null && point.lng !== null && (
+          <div>
+            <Suspense
+              fallback={
+                <div
+                  className="rounded-xl"
+                  style={{
+                    height: 320,
+                    backgroundColor: 'var(--tg-secondary-bg)',
+                  }}
+                />
+              }
+            >
+              <LocationPicker
+                lat={point.lat}
+                lng={point.lng}
+                onChange={handleMapDrag}
+              />
+            </Suspense>
+            <p
+              className="mt-2 tabular-nums"
+              style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+            >
+              {formatCoord(point.lat)}, {formatCoord(point.lng)} · перетащите
+              маркер для точной корректировки.
+            </p>
+          </div>
+        )}
+
+        <div>
+          <label
+            className="block mb-1"
+            style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+          >
+            Расписание (необязательно)
+          </label>
+          <input
+            type="text"
+            value={point.schedule}
+            onChange={(e) => onChange({ schedule: e.target.value })}
+            placeholder="Сб-Вс 8:00–15:00"
+            className="w-full rounded-lg px-3 py-3 outline-none"
+            style={{
+              backgroundColor: 'var(--tg-secondary-bg)',
+              color: 'var(--tg-text)',
+              fontSize: 15,
+              border: '1px solid var(--tg-hairline)',
+            }}
+          />
+        </div>
+      </div>
+    </article>
   )
 }
 

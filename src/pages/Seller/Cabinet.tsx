@@ -85,13 +85,66 @@ export default function SellerCabinet() {
         <InfoRow label="Категория" value={categoryLabel} />
         <Divider />
         <InfoRow label="Телефон" value={seller.phone} />
-        {seller.location_label && (
+        {seller.home_address && (
+          <>
+            <Divider />
+            <InfoRow label="Адрес фермы" value={seller.home_address} />
+          </>
+        )}
+        {!seller.home_address && seller.location_label && (
           <>
             <Divider />
             <InfoRow label="Адрес" value={seller.location_label} />
           </>
         )}
       </section>
+
+      {seller.selling_points && seller.selling_points.length > 0 && (
+        <section
+          className="tg-shadow-sm rounded-xl mt-3"
+          style={{
+            backgroundColor: 'var(--tg-section-bg, var(--tg-bg))',
+            padding: 16,
+          }}
+          aria-label="Места продажи"
+        >
+          <h2
+            className="font-medium mb-2"
+            style={{ fontSize: 14, color: 'var(--tg-hint)' }}
+          >
+            📍 Места продажи
+          </h2>
+          {seller.selling_points.map((sp, idx) => (
+            <div key={`${sp.lat},${sp.lng},${idx}`}>
+              {idx > 0 && <Divider />}
+              <div className="py-1">
+                <div
+                  className="font-medium"
+                  style={{ fontSize: 14, color: 'var(--tg-text)' }}
+                >
+                  {sp.label}
+                </div>
+                {sp.address && (
+                  <div
+                    className="mt-0.5"
+                    style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+                  >
+                    {sp.address}
+                  </div>
+                )}
+                {sp.schedule && (
+                  <div
+                    className="mt-0.5"
+                    style={{ fontSize: 13, color: 'var(--tg-hint)' }}
+                  >
+                    🕐 {sp.schedule}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
 
       <div className="mt-auto pt-6">
         <button
