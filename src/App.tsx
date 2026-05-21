@@ -30,6 +30,10 @@ const SellerRegister = lazy(() => import('./pages/Seller/Register'))
 const SellerLogin = lazy(() => import('./pages/Seller/Login'))
 const SellerCabinet = lazy(() => import('./pages/Seller/Cabinet'))
 const SellerEdit = lazy(() => import('./pages/Seller/Edit'))
+const PrivacyPage = lazy(() => import('./pages/Legal/PrivacyPage'))
+const TermsPage = lazy(() => import('./pages/Legal/TermsPage'))
+
+const LEGAL_PATHS = new Set(['/privacy', '/terms'])
 
 function PageLoader() {
   return (
@@ -118,6 +122,7 @@ function SellerGate() {
 }
 
 export default function App() {
+  const location = useLocation()
   const sellerMode = useSellerRole()
   const { error } = useUserMe()
 
@@ -126,6 +131,20 @@ export default function App() {
     applyTheme()
     return onThemeChanged(applyTheme)
   }, [])
+
+  // Public legal pages — accessible without Telegram auth, no chrome.
+  // Rendered before the unauthorized gate so they work in plain
+  // browsers (App Store, support emails, About modal external links).
+  if (LEGAL_PATHS.has(location.pathname)) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
 
   if (error?.code === 'unauthorized') {
     return (

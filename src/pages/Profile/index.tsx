@@ -1,4 +1,11 @@
-import { ChevronRight, Info, Package, X } from 'lucide-react'
+import {
+  ChevronRight,
+  FileText,
+  Info,
+  Package,
+  ShieldCheck,
+  X,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
@@ -364,6 +371,33 @@ function AboutModal({ onClose }: { onClose: () => void }) {
             Маркетплейс фермерских продуктов и аналитика списаний для
             небольших F&B-заведений в Минске и области.
           </p>
+          <nav
+            className="rounded-lg overflow-hidden"
+            style={{
+              backgroundColor: 'var(--tg-secondary-bg)',
+            }}
+            aria-label="Правовые документы"
+          >
+            <LegalLink
+              to="/privacy"
+              icon={ShieldCheck}
+              label="Политика конфиденциальности"
+              onNavigate={onClose}
+            />
+            <div
+              style={{
+                height: 1,
+                marginLeft: 44,
+                backgroundColor: 'var(--tg-hairline)',
+              }}
+            />
+            <LegalLink
+              to="/terms"
+              icon={FileText}
+              label="Условия использования"
+              onNavigate={onClose}
+            />
+          </nav>
           <div
             className="rounded-lg p-3"
             style={{
@@ -379,5 +413,47 @@ function AboutModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
     </>
+  )
+}
+
+function LegalLink({
+  to,
+  icon: Icon,
+  label,
+  onNavigate,
+}: {
+  to: string
+  icon: LucideIcon
+  label: string
+  onNavigate: () => void
+}) {
+  return (
+    <Link
+      to={to}
+      onClick={onNavigate}
+      className="flex items-center justify-between gap-3 px-3 py-3 active:opacity-70 transition"
+      style={{ transitionDuration: '150ms' }}
+    >
+      <span className="flex items-center gap-3 min-w-0">
+        <Icon
+          size={20}
+          strokeWidth={2}
+          style={{ color: 'var(--tg-link)' }}
+          aria-hidden="true"
+        />
+        <span
+          className="truncate"
+          style={{ fontSize: 14, color: 'var(--tg-text)' }}
+        >
+          {label}
+        </span>
+      </span>
+      <ChevronRight
+        size={16}
+        strokeWidth={2}
+        style={{ color: 'var(--tg-hint)' }}
+        aria-hidden="true"
+      />
+    </Link>
   )
 }
