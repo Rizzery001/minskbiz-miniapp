@@ -2,6 +2,7 @@ import { Minus, Plus, ShoppingCart, Store, Trash2 } from 'lucide-react'
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ApiError, apiPost } from '../../api/client'
+import ConfirmModal from '../../components/ConfirmModal'
 import DemoNotice from '../../components/DemoNotice'
 import {
   type CartItem,
@@ -24,6 +25,7 @@ export default function Cart() {
   const cart = useCart()
   const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
   const grouped = useMemo<Array<[string, CartItem[]]>>(() => {
     const map = new Map<string, CartItem[]>()
@@ -129,12 +131,16 @@ export default function Cart() {
     }
   }, [])
 
-  const handleClear = () => {
+  const requestClear = () => {
     if (cart.length === 0) return
-    const ok = window.confirm('Очистить корзину?')
-    if (!ok) return
+    hapticFeedback.light()
+    setClearConfirmOpen(true)
+  }
+
+  const performClear = () => {
     hapticFeedback.medium()
     clearCart()
+    setClearConfirmOpen(false)
   }
 
   return (
@@ -169,7 +175,7 @@ export default function Cart() {
             </div>
             <button
               type="button"
-              onClick={handleClear}
+              onClick={requestClear}
               className="w-full mt-2 py-3 rounded-lg font-medium flex items-center justify-center gap-2 active:opacity-60 transition"
               style={{
                 backgroundColor: 'transparent',
@@ -184,6 +190,16 @@ export default function Cart() {
           </>
         )}
       </div>
+      {clearConfirmOpen && (
+        <ConfirmModal
+          title="Очистить корзину?"
+          message="Все товары из корзины будут удалены. Это действие нельзя отменить."
+          confirmLabel="Очистить"
+          danger
+          onCancel={() => setClearConfirmOpen(false)}
+          onConfirm={performClear}
+        />
+      )}
     </div>
   )
 }

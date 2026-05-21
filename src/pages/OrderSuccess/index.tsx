@@ -125,13 +125,28 @@ export default function OrderSuccess() {
               Вернуться в корзину
             </button>
           )}
+          {allOk && (
+            <button
+              type="button"
+              onClick={() => navigate('/me/orders', { replace: true })}
+              className="w-full py-3 rounded-lg font-medium active:opacity-80 active:scale-[0.97] transition"
+              style={{
+                backgroundColor: 'var(--tg-button)',
+                color: 'var(--tg-button-text)',
+                fontSize: 15,
+                transitionDuration: '150ms',
+              }}
+            >
+              К моим заказам
+            </button>
+          )}
           <button
             type="button"
             onClick={() => navigate('/farmers', { replace: true })}
             className="w-full py-3 rounded-lg font-medium active:opacity-80 active:scale-[0.97] transition"
             style={{
-              backgroundColor: allOk ? 'var(--tg-button)' : 'var(--tg-secondary-bg)',
-              color: allOk ? 'var(--tg-button-text)' : 'var(--tg-text)',
+              backgroundColor: 'var(--tg-secondary-bg)',
+              color: 'var(--tg-text)',
               fontSize: 15,
               transitionDuration: '150ms',
             }}
