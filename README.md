@@ -7,8 +7,8 @@ Telegram Mini App для маркетплейса фермерских прод�
 - Vite + React 18 + TypeScript (strict, `noUncheckedIndexedAccess`)
 - Tailwind CSS
 - React Router v6
-- Leaflet + react-leaflet (OpenStreetMap, без API-ключей)
-- Recharts (зарезервирован на День 3, в коде пока не используется)
+- Yandex Maps JS API 2.1 (требуется `VITE_YANDEX_MAPS_API_KEY`)
+- Recharts — графики аналитики списаний
 
 ## Запуск
 
