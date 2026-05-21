@@ -1,11 +1,16 @@
 import { BarChart3, MapPin, ShoppingCart, User } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useAppContext } from '../lib/context'
 import { useCartCount } from '../lib/useCart'
 
 export default function BottomNav() {
   const cartCount = useCartCount()
-  const cartHasItems = cartCount > 0
+  const context = useAppContext()
+  const showFarmers = context === 'farmers' || context === 'unified'
+  const showCart =
+    (context === 'farmers' || context === 'unified') && cartCount > 0
+  const showWaste = context === 'waste' || context === 'unified'
 
   return (
     <nav
@@ -18,12 +23,14 @@ export default function BottomNav() {
       }}
       aria-label="Нижняя навигация"
     >
-      <NavItem
-        to="/farmers"
-        label="Карта"
-        icon={<MapPin size={24} strokeWidth={2} aria-hidden="true" />}
-      />
-      {cartHasItems && (
+      {showFarmers && (
+        <NavItem
+          to="/farmers"
+          label="Карта"
+          icon={<MapPin size={24} strokeWidth={2} aria-hidden="true" />}
+        />
+      )}
+      {showCart && (
         <NavItem
           to="/cart"
           label="Корзина"
@@ -31,11 +38,13 @@ export default function BottomNav() {
           badge={cartCount}
         />
       )}
-      <NavItem
-        to="/waste"
-        label="Аналитика"
-        icon={<BarChart3 size={24} strokeWidth={2} aria-hidden="true" />}
-      />
+      {showWaste && (
+        <NavItem
+          to="/waste"
+          label="Аналитика"
+          icon={<BarChart3 size={24} strokeWidth={2} aria-hidden="true" />}
+        />
+      )}
       <NavItem
         to="/me"
         label="Я"

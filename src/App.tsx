@@ -11,6 +11,7 @@ import { useSeller, useUserMe } from './api/hooks'
 import BottomNav from './components/BottomNav'
 import DemoBanner from './components/DemoBanner'
 import ErrorState from './components/ErrorState'
+import { getAppContext } from './lib/context'
 import {
   applyTheme,
   init as tgInit,
@@ -211,9 +212,13 @@ export default function App() {
     )
   }
 
+  // Default landing route depends on entry-point context — waste users
+  // should land on the analytics screen, not the farmers map.
+  const defaultRoute = getAppContext() === 'waste' ? '/waste' : '/farmers'
+
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/farmers" replace />} />
+      <Route path="/" element={<Navigate to={defaultRoute} replace />} />
       <Route element={<Layout />}>
         <Route path="/farmers" element={<FarmersMap />} />
         <Route path="/cart" element={<Cart />} />
@@ -244,7 +249,7 @@ export default function App() {
         <Route path="/me/orders" element={<Orders />} />
         <Route path="/me/orders/success" element={<OrderSuccess />} />
       </Route>
-      <Route path="*" element={<Navigate to="/farmers" replace />} />
+      <Route path="*" element={<Navigate to={defaultRoute} replace />} />
     </Routes>
   )
 }
