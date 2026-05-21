@@ -13,6 +13,7 @@ const MINSK_CENTER: [number, number] = [53.9006, 27.559]
 const INITIAL_ZOOM = 11
 const LOCATE_ZOOM = 14
 const FOCUS_ZOOM = 14
+const SHOW_ALL_MINSK_ZOOM = 10
 const MIN_RADIUS_KM = 1
 const MAX_RADIUS_KM = 200
 const DEBOUNCE_MS = 400
@@ -462,6 +463,13 @@ export default function FarmersMap() {
     map.setCenter(coords, LOCATE_ZOOM, { duration: 300 })
   }, [])
 
+  const showAllInMinsk = useCallback(() => {
+    hapticFeedback.light()
+    const map = mapRef.current
+    if (!map) return
+    map.setCenter(MINSK_CENTER, SHOW_ALL_MINSK_ZOOM, { duration: 300 })
+  }, [])
+
   const closeSheet = useCallback(() => setSelectedSellerId(null), [])
 
   // Deep-link: if ?offer=<id> is set, fly to that seller's pin and open
@@ -607,6 +615,55 @@ export default function FarmersMap() {
             }}
           >
             Ничего не найдено по запросу «{debouncedQuery.trim()}»
+          </div>
+        )}
+
+      {debouncedQuery.trim() === '' &&
+        selectedCategories.size === 0 &&
+        visibleListings.length === 0 &&
+        !listingsLoading &&
+        !listingsError &&
+        debouncedView !== null && (
+          <div
+            className="tg-shadow-md absolute left-1/2 -translate-x-1/2 z-[900] rounded-xl text-center"
+            style={{
+              top: 'calc(env(safe-area-inset-top, 0px) + 200px)',
+              width: 'calc(100% - 32px)',
+              maxWidth: 320,
+              backgroundColor: 'var(--tg-bg)',
+              color: 'var(--tg-text)',
+              padding: '16px 18px',
+              border: '1px solid var(--tg-hairline)',
+            }}
+          >
+            <div className="text-3xl mb-1" aria-hidden="true">
+              🌾
+            </div>
+            <p
+              className="font-medium"
+              style={{ fontSize: 14, lineHeight: 1.35 }}
+            >
+              В этой зоне фермеров пока нет
+            </p>
+            <p
+              className="mt-1"
+              style={{ fontSize: 12, color: 'var(--tg-hint)', lineHeight: 1.4 }}
+            >
+              Попробуйте отдалить карту или показать всех фермеров Минска.
+            </p>
+            <button
+              type="button"
+              onClick={showAllInMinsk}
+              className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium active:opacity-80 active:scale-[0.97] transition"
+              style={{
+                backgroundColor: 'var(--tg-button)',
+                color: 'var(--tg-button-text)',
+                fontSize: 13,
+                transitionDuration: '150ms',
+              }}
+            >
+              Показать всех в Минске
+            </button>
           </div>
         )}
 
