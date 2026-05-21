@@ -6,9 +6,17 @@ import { hapticFeedback } from '../../lib/telegram'
 
 interface Props {
   onPick: (result: GeocodeResult) => void
+  // Optional proximity hint — if a caller already knows roughly where
+  // the seller is (e.g. a first selling-point), pass it so the geocoder
+  // can bias results toward that point. Defaults to Minsk centre.
+  near?: { lat: number; lng: number }
 }
 
-export default function AddressSearch({ onPick }: Props) {
+// Minsk centre — used as the default bias when the caller doesn't have
+// a better hint. Mirrors FarmersMap.MINSK_CENTER.
+const DEFAULT_NEAR = { lat: 53.9006, lng: 27.559 }
+
+export default function AddressSearch({ onPick, near }: Props) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<GeocodeResult[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -26,6 +34,8 @@ export default function AddressSearch({ onPick }: Props) {
       const res = await apiPost<GeocodeResponse>('/geocode', {
         query: trimmed,
         limit: 5,
+        country: 'BY',
+        near: near ?? DEFAULT_NEAR,
       })
       setResults(res?.results ?? [])
     } catch (err: unknown) {
