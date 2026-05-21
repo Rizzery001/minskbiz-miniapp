@@ -1,4 +1,12 @@
-import { MapPin, Minus, Plus, Sparkles, Store, X } from 'lucide-react'
+import {
+  MapPin,
+  Minus,
+  Plus,
+  ShoppingCart,
+  Sparkles,
+  Store,
+  X,
+} from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Listing, SellingPoint } from '../../api/types'
 import {
@@ -389,6 +397,8 @@ function OfferCard({ listing }: { listing: Listing }) {
   const max = listing.quantity
   const canIncrement = max === undefined || qty < max
   const freshness = parseFreshness(listing.available_until)
+  const inCart = qty > 0
+  const lineTotal = inCart ? qty * listing.price_per_unit : 0
 
   const inc = () => {
     if (!canIncrement) return
@@ -408,9 +418,18 @@ function OfferCard({ listing }: { listing: Listing }) {
     <div
       id={`offer-${listing.id}`}
       className="farmer-offer-card flex items-center gap-3 rounded-xl p-3"
+      style={
+        inCart
+          ? {
+              border: '1px solid var(--tg-link)',
+              backgroundColor:
+                'color-mix(in srgb, var(--tg-link) 6%, transparent)',
+            }
+          : undefined
+      }
     >
       <div
-        className="shrink-0 flex items-center justify-center"
+        className="relative shrink-0 flex items-center justify-center"
         style={{
           width: 48,
           height: 48,
@@ -422,6 +441,36 @@ function OfferCard({ listing }: { listing: Listing }) {
         aria-hidden="true"
       >
         {emoji}
+        {inCart && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: -4,
+              right: -4,
+              minWidth: 18,
+              height: 18,
+              padding: '0 5px',
+              borderRadius: 9,
+              backgroundColor: 'var(--tg-link)',
+              color: '#ffffff',
+              fontSize: 10,
+              fontWeight: 600,
+              lineHeight: '18px',
+              textAlign: 'center',
+              boxShadow:
+                '0 0 0 2px var(--tg-section-bg, var(--tg-bg))',
+              boxSizing: 'border-box',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 2,
+            }}
+          >
+            <ShoppingCart size={9} strokeWidth={3} />
+            <span>{qty > 99 ? '99+' : qty}</span>
+          </span>
+        )}
       </div>
       <div className="min-w-0 flex-1">
         <h3
@@ -441,13 +490,22 @@ function OfferCard({ listing }: { listing: Listing }) {
         >
           {formatPrice(listing.price_per_unit, listing.currency, listing.unit)}
         </p>
-        {max !== undefined && (
+        {inCart ? (
           <p
-            className="mt-0.5"
-            style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+            className="mt-0.5 tabular-nums"
+            style={{ fontSize: 12, color: 'var(--tg-link)', fontWeight: 500 }}
           >
-            осталось {max} {listing.unit}
+            × {qty} = {lineTotal.toFixed(2)} {listing.currency}
           </p>
+        ) : (
+          max !== undefined && (
+            <p
+              className="mt-0.5"
+              style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+            >
+              осталось {max} {listing.unit}
+            </p>
+          )
         )}
       </div>
       <div className="shrink-0">
@@ -456,10 +514,12 @@ function OfferCard({ listing }: { listing: Listing }) {
             type="button"
             onClick={inc}
             disabled={!canIncrement}
-            className="flex items-center gap-1 rounded-lg active:opacity-80 active:scale-[0.97] disabled:opacity-40 transition"
+            aria-label="Добавить в корзину"
+            className="flex items-center justify-center gap-1.5 rounded-lg active:opacity-80 active:scale-[0.97] disabled:opacity-40 transition"
             style={{
-              height: 32,
-              padding: '0 12px',
+              minWidth: 120,
+              height: 36,
+              padding: '0 14px',
               backgroundColor: 'var(--tg-button)',
               color: 'var(--tg-button-text)',
               fontSize: 14,
@@ -467,8 +527,8 @@ function OfferCard({ listing }: { listing: Listing }) {
               transitionDuration: '150ms',
             }}
           >
-            <Plus size={16} strokeWidth={2} />
-            <span>Добавить</span>
+            <ShoppingCart size={16} strokeWidth={2} aria-hidden="true" />
+            <span>В корзину</span>
           </button>
         ) : (
           <div className="flex items-center gap-1">
