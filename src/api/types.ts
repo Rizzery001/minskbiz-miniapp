@@ -16,6 +16,7 @@ export interface Listing {
   title: string
   category: string
   emoji?: string
+  photo_url?: string | null
   price_per_unit: number
   currency: string
   unit: string
@@ -120,6 +121,7 @@ export interface MyListing {
   title: string
   category: string
   emoji?: string | null
+  photo_url?: string | null
   quantity: number
   unit: string
   price_per_unit: number

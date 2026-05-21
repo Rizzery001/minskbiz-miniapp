@@ -1,6 +1,7 @@
-import { Pause, Play, X } from 'lucide-react'
+import { Camera, Pause, Play, Trash2, X } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ApiError, apiPatch, apiPost } from '../../api/client'
+import type { ChangeEvent } from 'react'
+import { ApiError, apiDelete, apiPatch, apiPost, apiUpload } from '../../api/client'
 import type {
   ListingCreatePayload,
   ListingStatus,
@@ -33,6 +34,26 @@ const UNIT_SUGGESTIONS = [
 
 const DEFAULT_CURRENCY = 'BYN'
 const UNIT_DATALIST_ID = 'krana-listing-units'
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024
+const ACCEPTED_PHOTO_MIMES = ['image/jpeg', 'image/png', 'image/webp']
+
+const PHOTO_ERROR_TEXTS: Record<string, string> = {
+  file_too_large: 'Файл слишком большой (макс 5 МБ)',
+  unsupported_media_type: 'Поддерживаются JPEG, PNG, WebP',
+  storage_upload_failed: 'Не удалось загрузить фото. Попробуйте ещё раз.',
+  storage_url_failed: 'Не удалось получить ссылку на фото',
+  missing_file: 'Файл не выбран',
+  empty_file: 'Файл пустой',
+}
+
+function describePhotoError(err: unknown, fallback: string): string {
+  if (err instanceof ApiError) {
+    if (err.code && PHOTO_ERROR_TEXTS[err.code]) return PHOTO_ERROR_TEXTS[err.code]!
+    if (err.message) return err.message
+  }
+  return fallback
+}
 
 function todayDateString(): string {
   const d = new Date()
@@ -114,6 +135,16 @@ export default function ListingFormModal({
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Photo state. For existing listings, photoUrl reflects what's stored on
+  // the backend. For new listings, pendingPhotoFile holds the chosen file
+  // until the listing is created and we can upload it to /listings/<id>/photo.
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [pendingPhotoFile, setPendingPhotoFile] = useState<File | null>(null)
+  const [pendingPhotoPreview, setPendingPhotoPreview] = useState<string | null>(null)
+  const [photoBusy, setPhotoBusy] = useState(false)
+  const [photoError, setPhotoError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+
   // Reset form whenever the modal opens or switches between create/edit.
   useEffect(() => {
     if (!open) return
@@ -133,6 +164,7 @@ export default function ListingFormModal({
       )
       setAvailableUntil(toDateInputValue(initial.available_until))
       setStatus(initial.status ?? 'active')
+      setPhotoUrl(initial.photo_url ?? null)
     } else {
       setTitle('')
       setCategory('')
@@ -143,10 +175,25 @@ export default function ListingFormModal({
       setPrice('')
       setAvailableUntil('')
       setStatus('active')
+      setPhotoUrl(null)
     }
+    setPendingPhotoFile(null)
+    setPhotoError(null)
+    setPhotoBusy(false)
     setError(null)
     setSubmitting(false)
   }, [open, initial])
+
+  // Object URL for the pending file preview — revoke on cleanup.
+  useEffect(() => {
+    if (!pendingPhotoFile) {
+      setPendingPhotoPreview(null)
+      return
+    }
+    const url = URL.createObjectURL(pendingPhotoFile)
+    setPendingPhotoPreview(url)
+    return () => URL.revokeObjectURL(url)
+  }, [pendingPhotoFile])
 
   const close = useCallback(() => {
     if (submitting) return
@@ -185,6 +232,81 @@ export default function ListingFormModal({
   const handleEmojiChange = (value: string) => {
     emojiTouchedRef.current = true
     setEmoji(value)
+  }
+
+  const openPhotoPicker = () => {
+    if (photoBusy || submitting) return
+    hapticFeedback.light()
+    fileInputRef.current?.click()
+  }
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    // Reset so the same file can be picked again later.
+    e.target.value = ''
+    if (!file) return
+
+    if (file.size > MAX_PHOTO_BYTES) {
+      hapticFeedback.error()
+      setPhotoError('Файл слишком большой (макс 5 МБ)')
+      return
+    }
+    if (!ACCEPTED_PHOTO_MIMES.includes(file.type)) {
+      hapticFeedback.error()
+      setPhotoError('Поддерживаются JPEG, PNG, WebP')
+      return
+    }
+    setPhotoError(null)
+
+    // Existing listing — upload right away.
+    if (isEdit && initial) {
+      setPhotoBusy(true)
+      try {
+        const res = await apiUpload<{ photo_url: string }>(
+          `/listings/${encodeURIComponent(initial.id)}/photo`,
+          file,
+        )
+        setPhotoUrl(res.photo_url)
+        hapticFeedback.success()
+      } catch (err: unknown) {
+        hapticFeedback.error()
+        setPhotoError(describePhotoError(err, 'Не удалось загрузить фото'))
+      } finally {
+        setPhotoBusy(false)
+      }
+      return
+    }
+
+    // New listing — keep the file locally; we'll upload after POST /me/listings.
+    setPendingPhotoFile(file)
+  }
+
+  const handleRemovePhoto = async () => {
+    if (photoBusy || submitting) return
+    hapticFeedback.light()
+
+    // Local-only (creating new listing, file not yet uploaded).
+    if (pendingPhotoFile) {
+      setPendingPhotoFile(null)
+      return
+    }
+
+    if (isEdit && initial && photoUrl) {
+      setPhotoBusy(true)
+      setPhotoError(null)
+      try {
+        await apiDelete(
+          `/listings/${encodeURIComponent(initial.id)}/photo`,
+        )
+        setPhotoUrl(null)
+        hapticFeedback.success()
+      } catch (err: unknown) {
+        hapticFeedback.error()
+        setPhotoError(describePhotoError(err, 'Не удалось удалить фото'))
+      } finally {
+        setPhotoBusy(false)
+      }
+    }
   }
 
   const trimmedTitle = title.trim()
@@ -256,6 +378,21 @@ export default function ListingFormModal({
         if (trimmedEmoji) payload.emoji = trimmedEmoji
         if (trimmedAvailable) payload.available_until = trimmedAvailable
         saved = await apiPost<MyListing>('/me/listings', payload)
+
+        // Two-stage upload: now that we have an id, push the pending photo.
+        if (pendingPhotoFile && saved.id) {
+          try {
+            const res = await apiUpload<{ photo_url: string }>(
+              `/listings/${encodeURIComponent(saved.id)}/photo`,
+              pendingPhotoFile,
+            )
+            saved = { ...saved, photo_url: res.photo_url }
+          } catch (err: unknown) {
+            // The listing itself was saved — surface the photo error but
+            // still close the modal so the user sees the new listing.
+            setPhotoError(describePhotoError(err, 'Фото не загрузилось, можно повторить из редактирования'))
+          }
+        }
       }
       hapticFeedback.success()
       onSaved(saved)
@@ -354,6 +491,116 @@ export default function ListingFormModal({
                 )
               })}
             </div>
+          </Field>
+
+          <Field label="Фото">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileChange}
+              style={{ display: 'none' }}
+            />
+            {(() => {
+              const previewSrc = pendingPhotoPreview ?? photoUrl
+              if (previewSrc) {
+                return (
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="shrink-0 overflow-hidden"
+                      style={{
+                        width: 80,
+                        height: 80,
+                        borderRadius: 12,
+                        border: '1px solid var(--tg-hairline)',
+                        backgroundColor: 'var(--tg-secondary-bg)',
+                      }}
+                    >
+                      <img
+                        src={previewSrc}
+                        alt="Фото товара"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                        }}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={openPhotoPicker}
+                        disabled={photoBusy || submitting}
+                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg active:opacity-80 disabled:opacity-50 transition"
+                        style={{
+                          backgroundColor: 'var(--tg-secondary-bg)',
+                          color: 'var(--tg-text)',
+                          border: '1px solid var(--tg-hairline)',
+                          fontSize: 13,
+                          transitionDuration: '150ms',
+                        }}
+                      >
+                        <Camera size={14} strokeWidth={2} aria-hidden="true" />
+                        <span>Заменить</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRemovePhoto}
+                        disabled={photoBusy || submitting}
+                        className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg active:opacity-80 disabled:opacity-50 transition"
+                        style={{
+                          backgroundColor: 'transparent',
+                          color: 'var(--tg-destructive-text, #ff3b30)',
+                          border: '1px solid var(--tg-hairline)',
+                          fontSize: 13,
+                          transitionDuration: '150ms',
+                        }}
+                      >
+                        <Trash2 size={14} strokeWidth={2} aria-hidden="true" />
+                        <span>Удалить фото</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              }
+              return (
+                <button
+                  type="button"
+                  onClick={openPhotoPicker}
+                  disabled={photoBusy || submitting}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-lg active:opacity-80 disabled:opacity-50 transition"
+                  style={{
+                    backgroundColor: 'var(--tg-secondary-bg)',
+                    color: 'var(--tg-link)',
+                    border: '1px dashed var(--tg-hairline)',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    transitionDuration: '150ms',
+                  }}
+                >
+                  {photoBusy ? (
+                    <span>Загружаем…</span>
+                  ) : (
+                    <>
+                      <Camera size={16} strokeWidth={2} aria-hidden="true" />
+                      <span>Добавить фото</span>
+                    </>
+                  )}
+                </button>
+              )
+            })()}
+            {photoError && (
+              <p
+                className="mt-2"
+                style={{
+                  fontSize: 12,
+                  color: 'var(--tg-destructive-text, #ff3b30)',
+                }}
+              >
+                {photoError}
+              </p>
+            )}
           </Field>
 
           <div className="flex gap-2">

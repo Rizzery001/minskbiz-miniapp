@@ -429,18 +429,31 @@ function OfferCard({ listing }: { listing: Listing }) {
       }
     >
       <div
-        className="relative shrink-0 flex items-center justify-center"
+        className="relative shrink-0 flex items-center justify-center overflow-hidden"
         style={{
-          width: 48,
-          height: 48,
+          width: 64,
+          height: 64,
           borderRadius: 12,
           backgroundColor: style.color + '26',
-          fontSize: 24,
+          fontSize: 28,
           lineHeight: 1,
         }}
         aria-hidden="true"
       >
-        {emoji}
+        {listing.photo_url ? (
+          <img
+            src={listing.photo_url}
+            alt=""
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+            }}
+          />
+        ) : (
+          emoji
+        )}
         {inCart && (
           <span
             aria-hidden="true"

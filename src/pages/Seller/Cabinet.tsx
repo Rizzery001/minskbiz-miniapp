@@ -713,20 +713,43 @@ function ListingCard({
       }}
     >
       <div className="flex items-start gap-3">
-        <div
-          className="shrink-0 flex items-center justify-center"
-          style={{
-            width: 44,
-            height: 44,
-            borderRadius: 12,
-            backgroundColor: 'var(--tg-secondary-bg)',
-            fontSize: 22,
-            lineHeight: 1,
-          }}
-          aria-hidden="true"
-        >
-          {emoji}
-        </div>
+        {listing.photo_url ? (
+          <div
+            className="shrink-0 overflow-hidden"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: 'var(--tg-secondary-bg)',
+            }}
+          >
+            <img
+              src={listing.photo_url}
+              alt=""
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+            />
+          </div>
+        ) : (
+          <div
+            className="shrink-0 flex items-center justify-center"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              backgroundColor: 'var(--tg-secondary-bg)',
+              fontSize: 22,
+              lineHeight: 1,
+            }}
+            aria-hidden="true"
+          >
+            {emoji}
+          </div>
+        )}
         <div className="min-w-0 flex-1">
           <div className="flex items-start gap-2">
             <h3

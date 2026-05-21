@@ -16,15 +16,21 @@ export class ApiError extends Error {
 
 type QueryValue = string | number | boolean | undefined | null
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+async function request<T>(
+  path: string,
+  init?: RequestInit & { multipart?: boolean },
+): Promise<T> {
   if (!baseUrl) {
     throw new ApiError(0, 'VITE_API_BASE is not configured', 'config_error')
   }
 
   const initData = getInitData()
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
     ...((init?.headers as Record<string, string> | undefined) ?? {}),
+  }
+  // For multipart, let the browser set Content-Type with the right boundary.
+  if (!init?.multipart) {
+    headers['Content-Type'] = 'application/json'
   }
   if (initData) {
     headers['X-Telegram-Init-Data'] = initData
@@ -100,4 +106,10 @@ export function apiPatch<T>(path: string, body?: unknown): Promise<T> {
 
 export function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'DELETE' })
+}
+
+export function apiUpload<T>(path: string, file: File, field = 'file'): Promise<T> {
+  const form = new FormData()
+  form.append(field, file)
+  return request<T>(path, { method: 'POST', body: form, multipart: true })
 }
