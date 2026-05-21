@@ -1,5 +1,7 @@
 import {
   LogOut,
+  MapPin,
+  Package,
   Pause,
   Pencil,
   Play,
@@ -19,12 +21,20 @@ import type {
   SellingPoint,
   SellingPointDeleteResponse,
 } from '../../api/types'
+import ConfirmModal from '../../components/ConfirmModal'
 import ErrorState from '../../components/ErrorState'
+import { exitSellerRole } from '../../lib/sellerRole'
 import { hapticFeedback } from '../../lib/telegram'
 import AddSellingPointModal from './AddSellingPointModal'
 import ListingFormModal from './ListingFormModal'
 import OrdersSection from './OrdersSection'
 import { SELLER_CATEGORIES } from './categories'
+
+interface PendingConfirm {
+  kind: 'sp' | 'listing' | 'logout'
+  id?: string
+  title?: string
+}
 
 export default function SellerCabinet() {
   const navigate = useNavigate()
@@ -55,6 +65,11 @@ export default function SellerCabinet() {
     null,
   )
 
+  // Pending destructive action awaiting user confirmation.
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(
+    null,
+  )
+
   const points = sellingPoints ?? []
   const canDelete = points.length > 1
   const items = listings ?? []
@@ -76,19 +91,28 @@ export default function SellerCabinet() {
     [refetchPoints],
   )
 
-  const handleDelete = useCallback(
-    async (point: SellingPoint) => {
-      if (!point.id) return
-      if (!canDelete) return
-      if (deletingId) return
-      const confirmed = window.confirm('Удалить эту точку?')
-      if (!confirmed) return
+  const requestDeletePoint = useCallback(
+    (point: SellingPoint) => {
+      if (!point.id || !canDelete || deletingId) return
+      hapticFeedback.light()
+      setPendingConfirm({
+        kind: 'sp',
+        id: point.id,
+        title: point.label,
+      })
+    },
+    [canDelete, deletingId],
+  )
+
+  const performDeletePoint = useCallback(
+    async (id: string) => {
       hapticFeedback.medium()
-      setDeletingId(point.id)
+      setDeletingId(id)
       setDeleteError(null)
+      setPendingConfirm(null)
       try {
         await apiDelete<SellingPointDeleteResponse>(
-          `/me/selling-points/${encodeURIComponent(point.id)}`,
+          `/me/selling-points/${encodeURIComponent(id)}`,
         )
         hapticFeedback.success()
         refetchPoints()
@@ -103,7 +127,7 @@ export default function SellerCabinet() {
         setDeletingId(null)
       }
     },
-    [canDelete, deletingId, refetchPoints],
+    [refetchPoints],
   )
 
   const openCreateListing = useCallback(() => {
@@ -164,17 +188,28 @@ export default function SellerCabinet() {
     [listingActionId, refetchListings],
   )
 
-  const handleListingDelete = useCallback(
-    async (listing: MyListing) => {
+  const requestDeleteListing = useCallback(
+    (listing: MyListing) => {
       if (listingActionId) return
-      const confirmed = window.confirm(`Удалить товар «${listing.title}»?`)
-      if (!confirmed) return
+      hapticFeedback.light()
+      setPendingConfirm({
+        kind: 'listing',
+        id: listing.id,
+        title: listing.title,
+      })
+    },
+    [listingActionId],
+  )
+
+  const performDeleteListing = useCallback(
+    async (id: string) => {
       hapticFeedback.medium()
-      setListingActionId(listing.id)
+      setListingActionId(id)
       setListingActionError(null)
+      setPendingConfirm(null)
       try {
         await apiDelete<ListingDeleteResponse>(
-          `/me/listings/${encodeURIComponent(listing.id)}`,
+          `/me/listings/${encodeURIComponent(id)}`,
         )
         hapticFeedback.success()
         refetchListings()
@@ -189,7 +224,7 @@ export default function SellerCabinet() {
         setListingActionId(null)
       }
     },
-    [listingActionId, refetchListings],
+    [refetchListings],
   )
 
   if (loading) {
@@ -215,15 +250,24 @@ export default function SellerCabinet() {
     SELLER_CATEGORIES.find((c) => c.value === seller.category)?.label ??
     seller.category
 
-  const handleLogout = () => {
+  const requestLogout = () => {
     hapticFeedback.light()
-    window.alert('В следующей версии можно будет выйти.')
+    setPendingConfirm({ kind: 'logout' })
+  }
+
+  const performLogout = () => {
+    hapticFeedback.medium()
+    setPendingConfirm(null)
+    exitSellerRole()
+    navigate('/', { replace: true })
   }
 
   const openSettings = () => {
     hapticFeedback.light()
     navigate('/seller/edit')
   }
+
+  const activeListingsCount = items.filter((l) => l.status === 'active').length
 
   return (
     <div className="p-4 flex flex-col" style={{ minHeight: '100%' }}>
@@ -270,6 +314,27 @@ export default function SellerCabinet() {
           </p>
         </div>
       </header>
+
+      <section
+        className="rounded-xl mb-4 grid grid-cols-2"
+        style={{
+          backgroundColor: 'var(--tg-section-bg, var(--tg-secondary-bg))',
+          padding: '14px 8px',
+        }}
+        aria-label="Сводка"
+      >
+        <StatCell
+          icon={<Package size={18} strokeWidth={2} aria-hidden="true" />}
+          value={activeListingsCount.toString()}
+          label="активных товаров"
+        />
+        <StatCell
+          icon={<MapPin size={18} strokeWidth={2} aria-hidden="true" />}
+          value={points.length.toString()}
+          label="мест продажи"
+          divider
+        />
+      </section>
 
       <section
         className="tg-shadow-sm rounded-xl"
@@ -352,7 +417,7 @@ export default function SellerCabinet() {
               point={point}
               canDelete={canDelete}
               deleting={deletingId === point.id}
-              onDelete={() => handleDelete(point)}
+              onDelete={() => requestDeletePoint(point)}
             />
           ))}
         </div>
@@ -449,7 +514,7 @@ export default function SellerCabinet() {
               busy={listingActionId === listing.id}
               onEdit={() => openEditListing(listing)}
               onToggle={() => handleListingToggleStatus(listing)}
-              onDelete={() => handleListingDelete(listing)}
+              onDelete={() => requestDeleteListing(listing)}
             />
           ))}
         </div>
@@ -487,7 +552,7 @@ export default function SellerCabinet() {
       <div className="mt-auto pt-6">
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={requestLogout}
           className="w-full py-3 rounded-lg font-medium flex items-center justify-center gap-2 active:opacity-60 transition"
           style={{
             backgroundColor: 'transparent',
@@ -514,6 +579,93 @@ export default function SellerCabinet() {
         onSaved={handleListingSaved}
         initial={editingListing}
       />
+
+      {pendingConfirm?.kind === 'sp' && pendingConfirm.id && (
+        <ConfirmModal
+          title="Удалить место продажи?"
+          message={
+            pendingConfirm.title
+              ? `«${pendingConfirm.title}» исчезнет из карты для покупателей.`
+              : 'Эта точка исчезнет из карты для покупателей.'
+          }
+          confirmLabel="Удалить"
+          danger
+          busy={deletingId === pendingConfirm.id}
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={() => {
+            const id = pendingConfirm.id
+            if (id) void performDeletePoint(id)
+          }}
+        />
+      )}
+
+      {pendingConfirm?.kind === 'listing' && pendingConfirm.id && (
+        <ConfirmModal
+          title="Удалить товар?"
+          message={
+            pendingConfirm.title
+              ? `«${pendingConfirm.title}» больше не будет виден покупателям.`
+              : 'Товар больше не будет виден покупателям.'
+          }
+          confirmLabel="Удалить"
+          danger
+          busy={listingActionId === pendingConfirm.id}
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={() => {
+            const id = pendingConfirm.id
+            if (id) void performDeleteListing(id)
+          }}
+        />
+      )}
+
+      {pendingConfirm?.kind === 'logout' && (
+        <ConfirmModal
+          title="Выйти из кабинета фермера?"
+          message="Вы вернётесь в обычный режим покупателя. Заказы и товары останутся в системе."
+          confirmLabel="Выйти"
+          onCancel={() => setPendingConfirm(null)}
+          onConfirm={performLogout}
+        />
+      )}
+    </div>
+  )
+}
+
+interface StatCellProps {
+  icon: React.ReactNode
+  value: string
+  label: string
+  divider?: boolean
+}
+
+function StatCell({ icon, value, label, divider }: StatCellProps) {
+  return (
+    <div
+      className="flex flex-col items-center justify-center text-center"
+      style={
+        divider
+          ? { borderLeft: '1px solid var(--tg-hairline)', padding: '0 8px' }
+          : { padding: '0 8px' }
+      }
+    >
+      <div
+        className="flex items-center gap-1.5"
+        style={{ color: 'var(--tg-link)' }}
+      >
+        {icon}
+        <span
+          className="font-semibold tabular-nums"
+          style={{ fontSize: 20, lineHeight: 1.1, color: 'var(--tg-text)' }}
+        >
+          {value}
+        </span>
+      </div>
+      <span
+        className="mt-1"
+        style={{ fontSize: 11, color: 'var(--tg-hint)', lineHeight: 1.2 }}
+      >
+        {label}
+      </span>
     </div>
   )
 }

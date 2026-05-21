@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import {
   Navigate,
   Outlet,
@@ -12,6 +12,7 @@ import BottomNav from './components/BottomNav'
 import DemoBanner from './components/DemoBanner'
 import ErrorState from './components/ErrorState'
 import { getAppContext } from './lib/context'
+import { useSellerRole } from './lib/sellerRole'
 import {
   applyTheme,
   init as tgInit,
@@ -29,8 +30,6 @@ const SellerRegister = lazy(() => import('./pages/Seller/Register'))
 const SellerLogin = lazy(() => import('./pages/Seller/Login'))
 const SellerCabinet = lazy(() => import('./pages/Seller/Cabinet'))
 const SellerEdit = lazy(() => import('./pages/Seller/Edit'))
-
-const SELLER_ROLE_KEY = 'krana_role'
 
 function PageLoader() {
   return (
@@ -81,24 +80,6 @@ function SellerLayout() {
   )
 }
 
-function isSellerRole(): boolean {
-  if (typeof window === 'undefined') return false
-  const params = new URLSearchParams(window.location.search)
-  if (params.get('role') === 'seller') {
-    try {
-      window.sessionStorage.setItem(SELLER_ROLE_KEY, '1')
-    } catch {
-      // ignore storage errors
-    }
-    return true
-  }
-  try {
-    return window.sessionStorage.getItem(SELLER_ROLE_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
 function SellerGate() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -137,7 +118,7 @@ function SellerGate() {
 }
 
 export default function App() {
-  const sellerMode = useMemo(() => isSellerRole(), [])
+  const sellerMode = useSellerRole()
   const { error } = useUserMe()
 
   useEffect(() => {
