@@ -16,6 +16,33 @@ export function getInitData(): string {
   return import.meta.env.VITE_DEV_INIT_DATA ?? ''
 }
 
+export interface TelegramUser {
+  id: number
+  firstName?: string
+  lastName?: string
+  username?: string
+  photoUrl?: string
+  languageCode?: string
+}
+
+/**
+ * Returns the Telegram user from initDataUnsafe — first_name, photo,
+ * etc. Frontend-side only (initDataUnsafe is not signed); for auth use
+ * the raw initData via getInitData() and verify on the backend.
+ */
+export function getTelegramUser(): TelegramUser | null {
+  const u = tg()?.initDataUnsafe?.user
+  if (!u || typeof u.id !== 'number') return null
+  return {
+    id: u.id,
+    firstName: u.first_name,
+    lastName: u.last_name,
+    username: u.username,
+    photoUrl: u.photo_url,
+    languageCode: u.language_code,
+  }
+}
+
 const THEME_KEYS: Array<[keyof TelegramThemeParams, string]> = [
   ['bg_color', '--tg-bg'],
   ['text_color', '--tg-text'],
