@@ -1,4 +1,4 @@
-import { ChevronLeft, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, MapPin } from 'lucide-react'
 import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, apiPatch } from '../../api/client'
@@ -518,6 +518,49 @@ export default function SellerEdit() {
             </div>
           )}
         </section>
+
+        <button
+          type="button"
+          onClick={() => {
+            hapticFeedback.light()
+            navigate('/seller/cabinet')
+          }}
+          className="rounded-lg flex items-center justify-between gap-3 px-3 py-3 active:opacity-70 transition"
+          style={{
+            backgroundColor: 'var(--tg-secondary-bg)',
+            border: '1px solid var(--tg-hairline)',
+            transitionDuration: '150ms',
+          }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <MapPin
+              size={18}
+              strokeWidth={2}
+              style={{ color: 'var(--tg-link)' }}
+              aria-hidden="true"
+            />
+            <div className="min-w-0 text-left">
+              <div
+                className="font-medium"
+                style={{ fontSize: 14, color: 'var(--tg-text)' }}
+              >
+                Места продажи
+              </div>
+              <div
+                className="mt-0.5"
+                style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+              >
+                Добавлять и удалять точки — в кабинете
+              </div>
+            </div>
+          </div>
+          <ChevronRight
+            size={18}
+            strokeWidth={2}
+            style={{ color: 'var(--tg-hint)' }}
+            aria-hidden="true"
+          />
+        </button>
 
         {submitError && (
           <div
