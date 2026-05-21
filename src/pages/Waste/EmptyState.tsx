@@ -1,3 +1,5 @@
+import { MIN_RECORDS_FOR_STATS } from './constants'
+
 interface Props {
   reason: 'empty' | 'error'
   message?: string
@@ -63,8 +65,8 @@ export default function EmptyState({
         Здесь появятся графики ваших списаний — по дням, причинам и позициям.
         <br />
         <br />
-        Нужно записать минимум <b>7 списаний</b> за последний месяц, чтобы
-        собрать статистику.
+        Нужно записать минимум <b>{MIN_RECORDS_FOR_STATS} списания</b> за
+        последний месяц, чтобы собрать статистику.
       </p>
       <div className="flex flex-col gap-3 w-full max-w-xs">
         {onShowDemo && (

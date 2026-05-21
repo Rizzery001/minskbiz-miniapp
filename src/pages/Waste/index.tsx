@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ApiError, apiGet } from '../../api/client'
 import { useUserMe } from '../../api/hooks'
 import { getDemoForSubtype } from '../../demo/waste-demo'
+import { pluralize } from '../../lib/format'
 import EmptyState from './EmptyState'
 import LoadingState from './LoadingState'
 import { adaptWasteStats } from './adapter'
+import { MIN_RECORDS_FOR_STATS } from './constants'
 import type { WasteData } from './types'
 import ByDayChart from './components/ByDayChart'
 import ByReasonChart from './components/ByReasonChart'
@@ -12,7 +14,7 @@ import ChartCard from './components/ChartCard'
 import TopItemsList from './components/TopItemsList'
 import WeekComparisonCard from './components/WeekComparisonCard'
 
-const MIN_RECORDS_FOR_STATS = 7
+const MIN_RECORDS_FOR_WEEK_COMPARISON = 14
 
 export default function Waste() {
   const [loading, setLoading] = useState(true)
@@ -72,6 +74,10 @@ export default function Waste() {
   const data = demoMode ? demoData : stats
   if (!data) return null
 
+  const showWeekComparison =
+    data.total_records >= MIN_RECORDS_FOR_WEEK_COMPARISON &&
+    data.week_comparison.prev_week_byn > 0
+
   return (
     <div
       className="h-full overflow-y-auto"
@@ -87,7 +93,7 @@ export default function Waste() {
             style={{ fontSize: 13, color: 'var(--tg-hint)' }}
           >
             Всего {data.total_records}{' '}
-            {pluralRecords(data.total_records)} ·{' '}
+            {pluralize(data.total_records, ['запись', 'записи', 'записей'])} ·{' '}
             <span className="tabular-nums">
               {data.total_amount_byn.toFixed(2)} BYN
             </span>
@@ -98,7 +104,9 @@ export default function Waste() {
           <DemoBanner onExit={() => setDemoMode(false)} />
         )}
 
-        <WeekComparisonCard data={data.week_comparison} />
+        {showWeekComparison && (
+          <WeekComparisonCard data={data.week_comparison} />
+        )}
 
         <ChartCard
           title="Списания по дням"
@@ -152,12 +160,4 @@ function DemoBanner({ onExit }: { onExit: () => void }) {
       </button>
     </div>
   )
-}
-
-function pluralRecords(n: number): string {
-  const mod10 = n % 10
-  const mod100 = n % 100
-  if (mod10 === 1 && mod100 !== 11) return 'запись'
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'записи'
-  return 'записей'
 }
