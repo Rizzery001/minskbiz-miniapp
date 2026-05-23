@@ -10,6 +10,7 @@ import type { LucideIcon } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMyOrders, useUserMe } from '../../api/hooks'
+import { useAppContext } from '../../lib/context'
 import { pluralize } from '../../lib/format'
 import { backButton, getTelegramUser, hapticFeedback } from '../../lib/telegram'
 
@@ -49,7 +50,13 @@ const APP_VERSION = 'v0.2'
 export default function Profile() {
   const { data: user } = useUserMe()
   const tgUser = useMemo(getTelegramUser, [])
+  // Kept unconditionally so the hook count stays stable across context
+  // switches and so the screen still has data if the user later changes
+  // tabs. Returns [] silently when there are no orders, which is the
+  // expected steady state for waste-only users.
   const { data: orders } = useMyOrders({ limit: 100 })
+  const context = useAppContext()
+  const isWaste = context === 'waste'
   const [aboutOpen, setAboutOpen] = useState(false)
 
   const subtypeLabel = formatSubtype(user?.subtype)
@@ -84,8 +91,14 @@ export default function Profile() {
     }
   }, [orders])
 
+  // "Мои заказы" is a buyer-flow link — irrelevant in waste analytics
+  // entry-points where the user came in to look at write-off stats, not
+  // farmer orders. "О приложении" stays in every context (Privacy /
+  // Terms must be reachable for legal compliance).
   const menu: MenuItem[] = [
-    { to: '/me/orders', icon: Package, label: 'Мои заказы' },
+    ...(isWaste
+      ? []
+      : [{ to: '/me/orders', icon: Package, label: 'Мои заказы' }]),
     {
       onClick: () => {
         hapticFeedback.light()
@@ -113,7 +126,7 @@ export default function Profile() {
           >
             {displayName}
           </div>
-          {(verticalLabel || subtypeLabel) && (
+          {!isWaste && (verticalLabel || subtypeLabel) && (
             <div
               className="mt-0.5 truncate"
               style={{ fontSize: 13, color: 'var(--tg-hint)' }}
@@ -132,7 +145,7 @@ export default function Profile() {
         </div>
       </header>
 
-      {stats && stats.count > 0 && (
+      {!isWaste && stats && stats.count > 0 && (
         <section
           className="rounded-xl mb-5 grid grid-cols-3"
           style={{
