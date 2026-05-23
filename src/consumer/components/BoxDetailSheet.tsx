@@ -28,6 +28,13 @@ interface Props {
  *  - 200 / 201 → onBookingSuccess(booking) — caller swaps to success sheet
  *  - 409       → onTransientError("Все слоты разобрали 😔") + close
  *  - other     → onTransientError("Ошибка, попробуй ещё раз")
+ *
+ * The CTA is disabled and re-labelled when:
+ *  - submitting (in-flight POST)
+ *  - slots_left <= 0 (sold out)
+ *  - pickup_window_end < now (window already closed — backstop for the
+ *    rare gap between the cafe's window ending and the 5-min auto-expire
+ *    sweep marking the box `expired` on the server)
  */
 export default function BoxDetailSheet({
   box,
@@ -40,6 +47,15 @@ export default function BoxDetailSheet({
   const [submitting, setSubmitting] = useState(false)
   const touchStartY = useRef<number | null>(null)
   const closingRef = useRef(false)
+
+  // Re-evaluated on every render — close-the-window check works without
+  // an explicit timer because the user almost certainly interacts again
+  // (scroll, tap) within the ~hour-long pickup window.
+  const isPickupExpired =
+    !!box.pickup_window_end &&
+    new Date(box.pickup_window_end).getTime() < Date.now()
+  const isSoldOut = box.slots_left <= 0
+  const cannotBook = isSoldOut || isPickupExpired
 
   useEffect(() => {
     const id = window.requestAnimationFrame(() => setMounted(true))
@@ -287,7 +303,7 @@ export default function BoxDetailSheet({
           <button
             type="button"
             onClick={handleBook}
-            disabled={submitting || box.slots_left <= 0}
+            disabled={submitting || cannotBook}
             aria-busy={submitting}
             className="w-full py-3 rounded-lg font-semibold active:opacity-80 active:scale-[0.99] disabled:opacity-50 transition"
             style={{
@@ -299,9 +315,11 @@ export default function BoxDetailSheet({
           >
             {submitting
               ? 'Бронируем…'
-              : box.slots_left <= 0
-                ? 'Все слоты разобрали'
-                : `Забронировать за ${formatPriceByn(box.price_byn)}`}
+              : isPickupExpired
+                ? 'Срок выдачи прошёл'
+                : isSoldOut
+                  ? 'Все слоты разобрали'
+                  : `Забронировать за ${formatPriceByn(box.price_byn)}`}
           </button>
         </div>
       </div>
