@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ConsumerBotNotConfiguredError,
+  getMyProfile,
   getNearbyBoxes,
 } from '../api'
 import BookingSuccessSheet from '../components/BookingSuccessSheet'
@@ -82,27 +83,63 @@ export default function MapScreen() {
     useState<ConsumerBooking | null>(null)
   const [toast, showToast] = useToast()
 
-  // 1. Try to learn the user's location once. Falls back to Minsk
-  //    centre when denied/unsupported so the map still renders.
+  // 1. Resolve the user's location, preferring the server copy saved by
+  //    @krana_box_bot during onboarding. Hitting GET /consumer/me first
+  //    means returning users skip the browser geolocation prompt
+  //    entirely. Order:
+  //      a. GET /consumer/me → use {location.lat, location.lng} if set
+  //      b. backend says no saved location → ask the browser
+  //      c. browser denies / unsupported → Minsk centre + nudge banner
+  //    A 503 from /consumer/me means the consumer bot isn't connected;
+  //    we surface the dedicated screen instead of falling through to a
+  //    geo prompt that would be useless without a working backend.
   useEffect(() => {
-    if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
-      setGeoDenied(true)
-      setCoords(MINSK_CENTER)
-      return
-    }
     let cancelled = false
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
+
+    async function initCoords() {
+      try {
+        const me = await getMyProfile()
         if (cancelled) return
-        setCoords([pos.coords.latitude, pos.coords.longitude])
-      },
-      () => {
+        if (me?.location?.lat != null && me.location?.lng != null) {
+          setCoords([me.location.lat, me.location.lng])
+          return
+        }
+      } catch (err) {
+        if (cancelled) return
+        if (err instanceof ConsumerBotNotConfiguredError) {
+          setBotNotConfigured(true)
+          return
+        }
+        // Non-503 errors are non-fatal here — the browser fallback can
+        // still give us coordinates so the map renders.
+      }
+
+      if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
         if (cancelled) return
         setGeoDenied(true)
         setCoords(MINSK_CENTER)
-      },
-      { timeout: GEO_TIMEOUT_MS, enableHighAccuracy: false, maximumAge: 60_000 },
-    )
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (cancelled) return
+          setCoords([pos.coords.latitude, pos.coords.longitude])
+        },
+        () => {
+          if (cancelled) return
+          setGeoDenied(true)
+          setCoords(MINSK_CENTER)
+        },
+        {
+          timeout: GEO_TIMEOUT_MS,
+          enableHighAccuracy: false,
+          maximumAge: 60_000,
+        },
+      )
+    }
+
+    void initCoords()
+
     return () => {
       cancelled = true
     }
