@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import ConsumerLayout from './ConsumerLayout'
 import BookingsScreen from './screens/BookingsScreen'
 import MapScreen from './screens/MapScreen'
 import ProfileScreen from './screens/ProfileScreen'
@@ -11,9 +12,11 @@ import ProfileScreen from './screens/ProfileScreen'
 export default function ConsumerApp() {
   return (
     <Routes>
-      <Route path="/" element={<MapScreen />} />
-      <Route path="/bookings" element={<BookingsScreen />} />
-      <Route path="/profile" element={<ProfileScreen />} />
+      <Route element={<ConsumerLayout />}>
+        <Route path="/" element={<MapScreen />} />
+        <Route path="/bookings" element={<BookingsScreen />} />
+        <Route path="/profile" element={<ProfileScreen />} />
+      </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
