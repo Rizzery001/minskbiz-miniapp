@@ -84,7 +84,7 @@ export default function MapScreen() {
   const [toast, showToast] = useToast()
 
   // 1. Resolve the user's location, preferring the server copy saved by
-  //    @krana_box_bot during onboarding. Hitting GET /consumer/me first
+  //    @plenty_misterybox_bot during onboarding. Hitting GET /consumer/me first
   //    means returning users skip the browser geolocation prompt
   //    entirely. Order:
   //      a. GET /consumer/me → use {location.lat, location.lng} if set

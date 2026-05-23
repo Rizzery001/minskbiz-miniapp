@@ -27,7 +27,7 @@ export default function BotNotConfiguredScreen() {
           maxWidth: 280,
         }}
       >
-        Открой <span style={{ color: 'var(--tg-link)' }}>@krana_box_bot</span>{' '}
+        Открой <span style={{ color: 'var(--tg-link)' }}>@plenty_misterybox_bot</span>{' '}
         в Telegram — оттуда mini-app запустится с правильной авторизацией.
       </p>
     </div>
