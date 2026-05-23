@@ -110,6 +110,12 @@ button {
   background: var(--tg-sheet-card-bg);
 }
 
+/* consumer sheets (Mystery Box detail / booking success) — distinct
+   class from .farmer-sheet so the two flows can diverge later. */
+.consumer-sheet {
+  background: var(--tg-sheet-bg);
+}
+
 /* search input */
 .search-input-wrapper:focus-within {
   box-shadow: var(--tg-shadow-sm);

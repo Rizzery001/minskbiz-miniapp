@@ -3,7 +3,10 @@ import {
   ConsumerBotNotConfiguredError,
   getNearbyBoxes,
 } from '../api'
-import type { ConsumerBox } from '../types'
+import BookingSuccessSheet from '../components/BookingSuccessSheet'
+import BoxDetailSheet from '../components/BoxDetailSheet'
+import Toast, { useToast } from '../components/Toast'
+import type { ConsumerBooking, ConsumerBox } from '../types'
 import { hapticFeedback } from '../../lib/telegram'
 import { useYandexMapsLoader } from '../../lib/yandexMaps'
 
@@ -74,6 +77,9 @@ export default function MapScreen() {
   const [botNotConfigured, setBotNotConfigured] = useState(false)
   const [boxesError, setBoxesError] = useState<string | null>(null)
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null)
+  const [successBooking, setSuccessBooking] =
+    useState<ConsumerBooking | null>(null)
+  const [toast, showToast] = useToast()
 
   // 1. Try to learn the user's location once. Falls back to Minsk
   //    centre when denied/unsupported so the map still renders.
@@ -225,6 +231,19 @@ export default function MapScreen() {
     [boxesLoading, boxesError, botNotConfigured, boxes, hasBoxes],
   )
 
+  const selectedBox = useMemo<ConsumerBox | null>(() => {
+    if (!selectedBoxId || !boxes) return null
+    return boxes.find((b) => b.id === selectedBoxId) ?? null
+  }, [selectedBoxId, boxes])
+
+  const closeDetailSheet = useCallback(() => setSelectedBoxId(null), [])
+  const closeSuccessSheet = useCallback(() => setSuccessBooking(null), [])
+
+  const handleBookingSuccess = useCallback((booking: ConsumerBooking) => {
+    setSelectedBoxId(null)
+    setSuccessBooking(booking)
+  }, [])
+
   if (botNotConfigured) {
     return <BotNotConfiguredScreen />
   }
@@ -345,6 +364,24 @@ export default function MapScreen() {
           </p>
         </div>
       )}
+
+      {selectedBox && (
+        <BoxDetailSheet
+          box={selectedBox}
+          onClose={closeDetailSheet}
+          onBookingSuccess={handleBookingSuccess}
+          onTransientError={showToast}
+        />
+      )}
+
+      {successBooking && (
+        <BookingSuccessSheet
+          booking={successBooking}
+          onClose={closeSuccessSheet}
+        />
+      )}
+
+      <Toast message={toast} />
     </div>
   )
 }
