@@ -208,7 +208,7 @@ export default function Profile() {
         className="mt-8 text-center text-xs"
         style={{ color: 'var(--tg-hint)' }}
       >
-        Krana • {APP_VERSION}
+        Plenty • {APP_VERSION}
       </p>
 
       {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
@@ -354,7 +354,7 @@ function AboutModal({ onClose }: { onClose: () => void }) {
             </span>
             <div>
               <div className="font-semibold" style={{ fontSize: 16 }}>
-                Krana
+                Plenty
               </div>
               <div style={{ fontSize: 13, color: 'var(--tg-hint)' }}>
                 {APP_VERSION}

@@ -10,7 +10,7 @@ export default function TermsPage() {
     >
       <h2>1. О сервисе</h2>
       <p>
-        Krana — это AI-ассистент для малого F&amp;B-бизнеса (кафе, бары,
+        Plenty — это AI-ассистент для малого F&amp;B-бизнеса (кафе, бары,
         кофейни, пекарни, фудтраки). Сервис работает через Telegram-бот и
         мини-приложение.
       </p>
@@ -19,10 +19,10 @@ export default function TermsPage() {
         № SC870130, Шотландия). Контакт:{' '}
         <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
       </p>
-      <p>Используя Krana, вы соглашаетесь с этими условиями.</p>
+      <p>Используя Plenty, вы соглашаетесь с этими условиями.</p>
 
       <h2>2. Демо-режим</h2>
-      <p>Сейчас Krana находится в стадии демо-тестирования. Это означает:</p>
+      <p>Сейчас Plenty находится в стадии демо-тестирования. Это означает:</p>
       <ul>
         <li>Функции могут добавляться, изменяться или временно не работать</li>
         <li>
@@ -46,7 +46,7 @@ export default function TermsPage() {
 
       <h2>4. AI-рекомендации — важно</h2>
       <p>
-        Krana использует искусственный интеллект для генерации рекомендаций
+        Plenty использует искусственный интеллект для генерации рекомендаций
         (рецепты, foodcost, цены закупок, события). Эти рекомендации являются
         ориентировочными и:
       </p>
@@ -58,7 +58,7 @@ export default function TermsPage() {
         <li>Требуют вашей собственной проверки перед применением</li>
         <li>Не заменяют профессиональный совет специалиста</li>
       </ul>
-      <p>Вы используете рекомендации Krana на свой риск.</p>
+      <p>Вы используете рекомендации Plenty на свой риск.</p>
 
       <h2>5. Контент пользователя</h2>
       <ul>
@@ -77,7 +77,7 @@ export default function TermsPage() {
       </ul>
 
       <h2>6. Что нельзя</h2>
-      <p>Использовать Krana для:</p>
+      <p>Использовать Plenty для:</p>
       <ul>
         <li>Незаконной деятельности</li>
         <li>Обхода работы сервиса (боты, парсинг, реверс-инжиниринг)</li>
@@ -131,7 +131,7 @@ export default function TermsPage() {
       </p>
 
       <p className="krana-legal-footer">
-        © 2026 Glitchlab Ltd. Krana is a product of Glitchlab Ltd. Companies
+        © 2026 Glitchlab Ltd. Plenty is a product of Glitchlab Ltd. Companies
         House: SC870130. Registered in Scotland.
       </p>
     </LegalLayout>

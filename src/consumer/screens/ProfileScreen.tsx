@@ -191,7 +191,7 @@ export default function ProfileScreen() {
           className="font-semibold uppercase tracking-wide mb-2 px-1"
           style={{ fontSize: 12, color: 'var(--tg-hint)' }}
         >
-          О Krana Box
+          О Plenty Mystery Box
         </h2>
         <div
           className="rounded-xl"
@@ -203,7 +203,7 @@ export default function ProfileScreen() {
             lineHeight: 1.5,
           }}
         >
-          Krana Box помогает забрать несъеденную еду из кафе и пекарен по
+          Plenty Mystery Box помогает забрать несъеденную еду из кафе и пекарен по
           символической цене. Каждая бронь — это меньше выброшенной еды и
           небольшая поддержка для локального бизнеса.
         </div>
@@ -217,9 +217,9 @@ export default function ProfileScreen() {
           lineHeight: 1.5,
         }}
       >
-        © 2026 Glitchlab Ltd. Krana is a product of Glitchlab Ltd.
+        © 2026 Glitchlab Ltd. Plenty is a product of Glitchlab Ltd.
         <br />
-        Companies House: SC870130.
+        Companies House: SC870130. Registered in Scotland.
       </footer>
 
       <Toast message={toast} />

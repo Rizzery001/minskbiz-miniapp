@@ -19,7 +19,7 @@ export default function SellerWelcome() {
           className="font-semibold mb-3"
           style={{ fontSize: 22, lineHeight: 1.2 }}
         >
-          Krana для фермеров
+          Plenty для фермеров
         </h1>
         <p
           className="mx-auto"
@@ -30,7 +30,7 @@ export default function SellerWelcome() {
             maxWidth: 320,
           }}
         >
-          Зарегистрируйте свою ферму на маркетплейсе Krana, чтобы начать
+          Зарегистрируйте свою ферму на маркетплейсе Plenty, чтобы начать
           получать заказы от кофеен и пекарен Минска.
         </p>
       </header>

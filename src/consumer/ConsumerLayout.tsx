@@ -34,7 +34,7 @@ export default function ConsumerLayout() {
               letterSpacing: 0.2,
             }}
           >
-            🎁 Krana Box
+            🎁 Plenty Mystery Box
           </span>
         </header>
         <div className="flex-1 min-h-0">

@@ -1,4 +1,4 @@
-# МинскБиз — Mini App
+# Plenty — Mini App
 
 Telegram Mini App для маркетплейса фермерских продуктов в Минске и области.
 
