@@ -11,6 +11,7 @@ import { useSeller, useUserMe } from './api/hooks'
 import BottomNav from './components/BottomNav'
 import DemoBanner from './components/DemoBanner'
 import ErrorState from './components/ErrorState'
+import { useConsumerRole } from './lib/consumerRole'
 import { getAppContext } from './lib/context'
 import { useSellerRole } from './lib/sellerRole'
 import {
@@ -32,6 +33,7 @@ const SellerCabinet = lazy(() => import('./pages/Seller/Cabinet'))
 const SellerEdit = lazy(() => import('./pages/Seller/Edit'))
 const PrivacyPage = lazy(() => import('./pages/Legal/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/Legal/TermsPage'))
+const ConsumerApp = lazy(() => import('./consumer/ConsumerApp'))
 
 const LEGAL_PATHS = new Set(['/privacy', '/terms'])
 
@@ -124,6 +126,7 @@ function SellerGate() {
 export default function App() {
   const location = useLocation()
   const sellerMode = useSellerRole()
+  const consumerMode = useConsumerRole()
   const { error } = useUserMe()
 
   useEffect(() => {
@@ -142,6 +145,17 @@ export default function App() {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
         </Routes>
+      </Suspense>
+    )
+  }
+
+  // Consumer mode is its own isolated flow signed by a different bot
+  // (BOX_BOT_TOKEN), so /user/me 401s from the main-bot initData check
+  // shouldn't gate it. Mount ConsumerApp before the unauthorized branch.
+  if (consumerMode) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <ConsumerApp />
       </Suspense>
     )
   }
