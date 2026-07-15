@@ -1,8 +1,9 @@
-import { Clock, MapPin, Package, X } from 'lucide-react'
+import { Clock, MapPin, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '../../api/client'
 import { backButton, hapticFeedback } from '../../lib/telegram'
 import { createBooking } from '../api'
+import { coverGradient, coverImageUrl } from '../covers'
 import {
   formatDistanceKm,
   formatPickupWindow,
@@ -21,19 +22,19 @@ interface Props {
 }
 
 /**
- * Bottom sheet showing a single chef box. Tapping the booking CTA
- * calls POST /consumer/bookings and surfaces three outcomes:
+ * Bottom sheet showing a single chef box. Layout, top to bottom:
+ * 16:9 cover (gradient placeholder by cover_id, real image is a
+ * progressive enhancement), venue name, address + distance, scarcity
+ * line, description, pickup window, one full-width booking CTA.
  *
+ * Booking outcomes:
  *  - 200 / 201 → onBookingSuccess(booking) — caller swaps to success sheet
  *  - 409       → onTransientError("Все слоты разобрали 😔") + close
  *  - other     → onTransientError("Ошибка, попробуй ещё раз")
  *
- * The CTA is disabled and re-labelled when:
- *  - submitting (in-flight POST)
- *  - slots_left <= 0 (sold out)
- *  - pickup_window_end < now (window already closed — backstop for the
- *    rare gap between the cafe's window ending and the 5-min auto-expire
- *    sweep marking the box `expired` on the server)
+ * The CTA is disabled and re-labelled when submitting, sold out, or the
+ * pickup window already closed (backstop for the gap before the 5-min
+ * auto-expire sweep marks the box expired server-side).
  */
 export default function BoxDetailSheet({
   box,
@@ -44,12 +45,10 @@ export default function BoxDetailSheet({
   const [mounted, setMounted] = useState(false)
   const [dragY, setDragY] = useState(0)
   const [submitting, setSubmitting] = useState(false)
+  const [coverImgFailed, setCoverImgFailed] = useState(false)
   const touchStartY = useRef<number | null>(null)
   const closingRef = useRef(false)
 
-  // Re-evaluated on every render — close-the-window check works without
-  // an explicit timer because the user almost certainly interacts again
-  // (scroll, tap) within the ~hour-long pickup window.
   const isPickupExpired =
     !!box.pickup_window_end &&
     new Date(box.pickup_window_end).getTime() < Date.now()
@@ -134,8 +133,11 @@ export default function BoxDetailSheet({
     : 'translateY(100vh)'
   const useTransition = dragY === 0
 
-  const title = box.title?.trim() || 'Шеф-бокс'
   const distanceLabel = formatDistanceKm(box.distance_km)
+  const scarcityLabel =
+    box.slots_left === 1
+      ? 'Остался последний'
+      : `Осталось ${box.slots_left} из ${box.slots_total}`
 
   return (
     <>
@@ -152,7 +154,7 @@ export default function BoxDetailSheet({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={`${title} — ${box.business_name}`}
+        aria-label={`Шеф-бокс — ${box.business_name}`}
         className="consumer-sheet tg-shadow-lg fixed inset-x-0 bottom-0 z-[1600] flex flex-col"
         style={{
           color: 'var(--tg-text)',
@@ -162,6 +164,7 @@ export default function BoxDetailSheet({
           transform: sheetTransform,
           transition: useTransition ? `transform ${ANIM_MS}ms ease-out` : 'none',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          overflow: 'hidden',
         }}
       >
         <div
@@ -182,73 +185,93 @@ export default function BoxDetailSheet({
               }}
             />
           </div>
-          <div className="flex items-start gap-3 px-4 pt-2 pb-3">
-            <div className="min-w-0 flex-1">
-              <h2
-                className="font-semibold leading-tight"
-                style={{ fontSize: 18 }}
+
+          {/* Cover — gradient placeholder, image is progressive enhancement */}
+          <div
+            className="relative mx-4 mt-1 rounded-2xl overflow-hidden"
+            style={{
+              aspectRatio: '16 / 9',
+              background: coverGradient(box.cover_id),
+            }}
+          >
+            {!coverImgFailed && (
+              <img
+                src={coverImageUrl(box.cover_id)}
+                alt=""
+                onError={() => setCoverImgFailed(true)}
+                className="absolute inset-0 w-full h-full"
+                style={{ objectFit: 'cover' }}
+              />
+            )}
+            {coverImgFailed && (
+              <span
+                aria-hidden="true"
+                className="absolute inset-0 flex items-center justify-center"
+                style={{
+                  fontSize: 52,
+                  filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))',
+                }}
               >
-                🎁 {title}
-              </h2>
-              <p
-                className="mt-1 truncate"
-                style={{ fontSize: 14, color: 'var(--tg-text)' }}
-              >
-                {box.business_name}
-              </p>
-            </div>
+                👨‍🍳
+              </span>
+            )}
             <button
               type="button"
               onClick={close}
               disabled={submitting}
               aria-label="Закрыть"
-              className="shrink-0 rounded-full flex items-center justify-center active:opacity-60 active:scale-95 disabled:opacity-50 transition"
+              className="absolute top-2 right-2 rounded-full flex items-center justify-center active:opacity-60 active:scale-95 disabled:opacity-50 transition"
               style={{
                 width: 32,
                 height: 32,
-                backgroundColor: 'var(--tg-secondary-bg)',
-                color: 'var(--tg-text)',
+                backgroundColor: 'rgba(0,0,0,0.45)',
+                color: '#ffffff',
                 transitionDuration: '150ms',
               }}
             >
-              <X size={20} />
+              <X size={18} />
             </button>
           </div>
-          <div
-            className="mx-4"
-            style={{ height: 1, backgroundColor: 'var(--tg-hairline)' }}
-          />
         </div>
 
         <div
           className="overflow-y-auto px-4 pt-3 pb-4 flex flex-col gap-3"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          <div className="flex items-baseline gap-2">
-            <span
-              className="font-bold tabular-nums"
-              style={{ fontSize: 28, color: 'var(--tg-accent-text)' }}
-            >
-              {formatPriceByn(box.price_byn)}
-            </span>
+          <div>
+            <h2 className="font-bold leading-tight" style={{ fontSize: 21 }}>
+              {box.business_name}
+            </h2>
+            <div className="mt-1 flex items-start gap-1.5">
+              <MapPin
+                size={14}
+                aria-hidden="true"
+                className="shrink-0 mt-0.5"
+                style={{ color: 'var(--tg-hint)' }}
+              />
+              <p
+                style={{
+                  fontSize: 13,
+                  color: 'var(--tg-hint)',
+                  lineHeight: 1.4,
+                }}
+              >
+                {box.address}
+                {distanceLabel ? ` · ${distanceLabel}` : ''}
+              </p>
+            </div>
           </div>
 
-          <InfoRow
-            icon={<MapPin size={16} aria-hidden="true" />}
-            primary={box.address}
-            secondary={distanceLabel || undefined}
-          />
-          <InfoRow
-            icon={<Clock size={16} aria-hidden="true" />}
-            primary={formatPickupWindow(
-              box.pickup_window_start,
-              box.pickup_window_end,
-            )}
-          />
-          <InfoRow
-            icon={<Package size={16} aria-hidden="true" />}
-            primary={`Осталось: ${box.slots_left} из ${box.slots_total}`}
-          />
+          <p
+            className="font-semibold"
+            style={{
+              fontSize: 15,
+              color:
+                box.slots_left === 1 ? '#f5a623' : 'var(--tg-accent-text)',
+            }}
+          >
+            {scarcityLabel}
+          </p>
 
           {box.description && (
             <p
@@ -264,6 +287,22 @@ export default function BoxDetailSheet({
               {box.description}
             </p>
           )}
+
+          <div className="flex items-center gap-2">
+            <Clock
+              size={16}
+              aria-hidden="true"
+              className="shrink-0"
+              style={{ color: 'var(--tg-hint)' }}
+            />
+            <p style={{ fontSize: 14, lineHeight: 1.4 }}>
+              Забрать{' '}
+              {formatPickupWindow(
+                box.pickup_window_start,
+                box.pickup_window_end,
+              )}
+            </p>
+          </div>
         </div>
 
         <div
@@ -289,45 +328,10 @@ export default function BoxDetailSheet({
                 ? 'Срок выдачи прошёл'
                 : isSoldOut
                   ? 'Все слоты разобрали'
-                  : `Забронировать за ${formatPriceByn(box.price_byn)}`}
+                  : `Забронировать · ${formatPriceByn(box.price_byn)}`}
           </button>
         </div>
       </div>
     </>
-  )
-}
-
-function InfoRow({
-  icon,
-  primary,
-  secondary,
-}: {
-  icon: React.ReactNode
-  primary: string
-  secondary?: string
-}) {
-  return (
-    <div className="flex items-start gap-2">
-      <span
-        className="shrink-0 mt-0.5"
-        style={{ color: 'var(--tg-hint)' }}
-        aria-hidden="true"
-      >
-        {icon}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p style={{ fontSize: 14, color: 'var(--tg-text)', lineHeight: 1.4 }}>
-          {primary}
-        </p>
-        {secondary && (
-          <p
-            className="mt-0.5"
-            style={{ fontSize: 12, color: 'var(--tg-hint)', lineHeight: 1.35 }}
-          >
-            {secondary}
-          </p>
-        )}
-      </div>
-    </div>
   )
 }

@@ -19,6 +19,10 @@ export interface ConsumerBox {
   description?: string | null
   slots_left: number
   slots_total: number
+  // Optional so bot/front deploy order is irrelevant — unknown/absent
+  // cover falls back to 'classic' (src/consumer/covers.ts).
+  tier?: string | null
+  cover_id?: string | null
 }
 
 export interface ConsumerBoxesResponse {

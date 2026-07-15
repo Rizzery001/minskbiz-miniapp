@@ -106,6 +106,7 @@ function seedToBox(seed: BoxSeed, fromLat: number, fromLng: number): ConsumerBox
   return {
     id: seed.id,
     title: 'Шеф-бокс',
+    cover_id: 'glow',
     business_name: seed.business_name,
     address: seed.address,
     business_location: { lat: seed.lat, lng: seed.lng },
