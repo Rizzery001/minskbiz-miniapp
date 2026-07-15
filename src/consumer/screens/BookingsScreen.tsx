@@ -131,7 +131,7 @@ export default function BookingsScreen() {
           className="mt-3 font-medium"
           style={{ fontSize: 15, lineHeight: 1.35 }}
         >
-          У тебя пока нет броней
+          Пока нет броней
         </p>
         <p
           className="mt-1"
@@ -142,7 +142,7 @@ export default function BookingsScreen() {
             maxWidth: 260,
           }}
         >
-          Найди Mystery Box на карте!
+          Найди свой первый Шеф-бокс на карте
         </p>
         <button
           type="button"

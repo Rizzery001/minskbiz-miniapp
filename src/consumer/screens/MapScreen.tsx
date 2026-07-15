@@ -392,7 +392,7 @@ export default function MapScreen() {
             className="mt-1 font-medium"
             style={{ fontSize: 14, lineHeight: 1.35 }}
           >
-            Поблизости пока нет Mystery Box'ов
+            Поблизости пока нет боксов
           </p>
           <p
             className="mt-1"

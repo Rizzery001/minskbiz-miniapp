@@ -191,7 +191,7 @@ export default function ProfileScreen() {
           className="font-semibold uppercase tracking-wide mb-2 px-1"
           style={{ fontSize: 12, color: 'var(--tg-hint)' }}
         >
-          О Plenty Mystery Box
+          О сервисе
         </h2>
         <div
           className="rounded-xl"
@@ -203,9 +203,8 @@ export default function ProfileScreen() {
             lineHeight: 1.5,
           }}
         >
-          Plenty Mystery Box помогает забрать несъеденную еду из кафе и пекарен по
-          символической цене. Каждая бронь — это меньше выброшенной еды и
-          небольшая поддержка для локального бизнеса.
+          Plenty — вечерние Шеф-боксы от заведений Минска. Каждый бокс —
+          сюрприз, собранный заведением. Бронируй, забирай, наслаждайся.
         </div>
       </section>
 

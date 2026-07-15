@@ -4,7 +4,6 @@ import { ApiError } from '../../api/client'
 import { backButton, hapticFeedback } from '../../lib/telegram'
 import { createBooking } from '../api'
 import {
-  discountPercent,
   formatDistanceKm,
   formatPickupWindow,
   formatPriceByn,
@@ -22,7 +21,7 @@ interface Props {
 }
 
 /**
- * Bottom sheet showing a single Mystery Box. Tapping the booking CTA
+ * Bottom sheet showing a single chef box. Tapping the booking CTA
  * calls POST /consumer/bookings and surfaces three outcomes:
  *
  *  - 200 / 201 → onBookingSuccess(booking) — caller swaps to success sheet
@@ -135,11 +134,7 @@ export default function BoxDetailSheet({
     : 'translateY(100vh)'
   const useTransition = dragY === 0
 
-  const title = box.title?.trim() || 'Mystery Box'
-  const discount =
-    box.original_price_byn != null
-      ? discountPercent(box.price_byn, box.original_price_byn)
-      : 0
+  const title = box.title?.trim() || 'Шеф-бокс'
   const distanceLabel = formatDistanceKm(box.distance_km)
 
   return (
@@ -236,31 +231,6 @@ export default function BoxDetailSheet({
             >
               {formatPriceByn(box.price_byn)}
             </span>
-            {box.original_price_byn != null && discount > 0 && (
-              <>
-                <span
-                  className="tabular-nums"
-                  style={{
-                    fontSize: 15,
-                    color: 'var(--tg-hint)',
-                    textDecoration: 'line-through',
-                  }}
-                >
-                  {formatPriceByn(box.original_price_byn)}
-                </span>
-                <span
-                  className="inline-flex items-center rounded-full font-semibold"
-                  style={{
-                    padding: '2px 8px',
-                    fontSize: 12,
-                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                    color: '#dc2626',
-                  }}
-                >
-                  -{discount}%
-                </span>
-              </>
-            )}
           </div>
 
           <InfoRow

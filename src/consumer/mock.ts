@@ -105,7 +105,7 @@ function slotsLeftFor(boxId: string, total: number): number {
 function seedToBox(seed: BoxSeed, fromLat: number, fromLng: number): ConsumerBox {
   return {
     id: seed.id,
-    title: 'Mystery Box',
+    title: 'Шеф-бокс',
     business_name: seed.business_name,
     address: seed.address,
     business_location: { lat: seed.lat, lng: seed.lng },
@@ -156,7 +156,7 @@ export function mockCreateBooking(boxId: string): ConsumerBooking {
     pickup_window_end: todayAt(seed.windowEnd),
     box: {
       id: seed.id,
-      title: 'Mystery Box',
+      title: 'Шеф-бокс',
       business_name: seed.business_name,
       address: seed.address,
       price_byn: seed.price,
