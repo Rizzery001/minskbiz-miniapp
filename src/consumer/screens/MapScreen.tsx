@@ -12,7 +12,7 @@ import type { ConsumerBooking, ConsumerBox } from '../types'
 import { hapticFeedback } from '../../lib/telegram'
 import { useYandexMapsLoader } from '../../lib/yandexMaps'
 
-const MINSK_CENTER: [number, number] = [53.9006, 27.559]
+const MINSK_CENTER: [number, number] = [53.902, 27.561]
 const INITIAL_ZOOM = 12
 const RADIUS_KM = 10
 const GEO_TIMEOUT_MS = 5000
@@ -47,18 +47,22 @@ function makeBoxIconLayout(
   slotsLeft: number,
   active: boolean,
 ): unknown {
-  const priceLabel = escapeHtml(`${priceByn} BYN`)
-  const slotsLabel = escapeHtml(`· ${slotsLeft}`)
+  const priceLabel = escapeHtml(`${priceByn.toFixed(0)} р.`)
   const ring = active
-    ? '0 0 0 3px var(--tg-link), 0 2px 6px rgba(0,0,0,0.25)'
-    : '0 2px 5px rgba(0,0,0,0.2)'
+    ? '0 0 0 3px var(--tg-link), 0 3px 8px rgba(0,0,0,0.45)'
+    : '0 2px 6px rgba(0,0,0,0.35)'
   const scale = active ? 1.1 : 1
+  // Scarcity accent: a small gold dot when the box is almost gone.
+  const scarcityDot =
+    slotsLeft <= 1
+      ? '<span style="width:7px;height:7px;border-radius:50%;background:#f5a623;box-shadow:0 0 4px rgba(245,166,35,0.9);"></span>'
+      : ''
   const html = `
     <div style="position:relative;width:0;height:0;">
-      <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(${scale});padding:5px 10px;border-radius:14px;background:#2481cc;color:#ffffff;border:2px solid #ffffff;box-shadow:${ring};font-size:13px;font-weight:600;line-height:1;white-space:nowrap;display:inline-flex;gap:4px;align-items:center;user-select:none;">
-        <span>🎁</span>
+      <div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%) scale(${scale});padding:6px 11px;border-radius:15px;background:#1a1a1a;color:#ffffff;border:1.5px solid rgba(255,255,255,0.85);box-shadow:${ring};font-size:13px;font-weight:600;line-height:1;white-space:nowrap;display:inline-flex;gap:5px;align-items:center;user-select:none;">
+        <span>👨\u200d🍳</span>
         <span>${priceLabel}</span>
-        <span style="opacity:0.85;font-weight:500;">${slotsLabel}</span>
+        ${scarcityDot}
       </div>
     </div>
   `
@@ -374,32 +378,19 @@ export default function MapScreen() {
 
       {showEmptyState && (
         <div
-          className="absolute left-1/2 -translate-x-1/2 z-[900] tg-shadow-md rounded-xl text-center"
+          className="absolute left-1/2 -translate-x-1/2 z-[900] rounded-full tg-shadow-sm text-center"
           style={{
-            top: 'calc(env(safe-area-inset-top, 0px) + 80px)',
-            width: 'calc(100% - 32px)',
-            maxWidth: 320,
-            padding: '18px 20px',
+            bottom: 16,
+            padding: '9px 16px',
             backgroundColor: 'var(--tg-bg)',
             color: 'var(--tg-text)',
             border: '1px solid var(--tg-hairline)',
+            fontSize: 13,
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
           }}
         >
-          <div style={{ fontSize: 28 }} aria-hidden="true">
-            🗺
-          </div>
-          <p
-            className="mt-1 font-medium"
-            style={{ fontSize: 14, lineHeight: 1.35 }}
-          >
-            Поблизости пока нет Mystery Box'ов
-          </p>
-          <p
-            className="mt-1"
-            style={{ fontSize: 12, color: 'var(--tg-hint)', lineHeight: 1.4 }}
-          >
-            Загляни позже!
-          </p>
+          Поблизости пока нет боксов · загляни вечером
         </div>
       )}
 

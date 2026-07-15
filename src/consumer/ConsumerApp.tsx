@@ -5,7 +5,7 @@ import MapScreen from './screens/MapScreen'
 import ProfileScreen from './screens/ProfileScreen'
 
 /**
- * Root of the consumer (Mystery Box) experience. Mounted by App.tsx
+ * Root of the consumer (chef-box) experience. Mounted by App.tsx
  * whenever ?role=consumer is detected. Holds its own router so the
  * routes never collide with the buyer/seller route tables.
  */

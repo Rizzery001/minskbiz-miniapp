@@ -17,15 +17,7 @@ function formatTime(iso: string): string {
 }
 
 export function formatPriceByn(value: number): string {
-  return `${value.toFixed(0)} BYN`
-}
-
-export function discountPercent(price: number, original: number): number {
-  if (!Number.isFinite(price) || !Number.isFinite(original) || original <= 0) {
-    return 0
-  }
-  if (price >= original) return 0
-  return Math.round((1 - price / original) * 100)
+  return `${value.toFixed(0)} р.`
 }
 
 export function formatDistanceKm(km: number | null | undefined): string {

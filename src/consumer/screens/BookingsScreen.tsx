@@ -1,4 +1,4 @@
-import { Map as MapIcon } from 'lucide-react'
+import { Check, Map as MapIcon, Navigation } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ConfirmModal from '../../components/ConfirmModal'
@@ -26,6 +26,13 @@ export default function BookingsScreen() {
   const [pendingCancelId, setPendingCancelId] = useState<string | null>(null)
   const [cancelling, setCancelling] = useState(false)
   const [toast, showToast] = useToast()
+  // Minute tick drives the live countdown on active tickets.
+  const [nowMs, setNowMs] = useState(() => Date.now())
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -131,7 +138,7 @@ export default function BookingsScreen() {
           className="mt-3 font-medium"
           style={{ fontSize: 15, lineHeight: 1.35 }}
         >
-          У тебя пока нет броней
+          Пока нет броней
         </p>
         <p
           className="mt-1"
@@ -142,7 +149,7 @@ export default function BookingsScreen() {
             maxWidth: 260,
           }}
         >
-          Найди Mystery Box на карте!
+          Найди свой первый Шеф-бокс на карте
         </p>
         <button
           type="button"
@@ -172,6 +179,7 @@ export default function BookingsScreen() {
               <ActiveBookingCard
                 key={b.id}
                 booking={b}
+                nowMs={nowMs}
                 onCancel={() => setPendingCancelId(b.id)}
               />
             ))}
@@ -229,13 +237,33 @@ function SectionHeader({ title, count }: { title: string; count: number }) {
   )
 }
 
+function formatCountdown(endIso: string, nowMs: number): string {
+  const end = new Date(endIso).getTime()
+  if (!Number.isFinite(end)) return ''
+  const left = end - nowMs
+  if (left <= 0) return 'Окно выдачи истекло'
+  const totalMin = Math.ceil(left / 60_000)
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h > 0) return `осталось ${h} ч ${m} мин`
+  return `осталось ${m} мин`
+}
+
+function routeUrl(address: string): string {
+  return `https://yandex.by/maps/?text=${encodeURIComponent(address)}`
+}
+
 function ActiveBookingCard({
   booking,
+  nowMs,
   onCancel,
 }: {
   booking: ConsumerBooking
+  nowMs: number
   onCancel: () => void
 }) {
+  const countdown = formatCountdown(booking.pickup_window_end, nowMs)
+  const expired = countdown === 'Окно выдачи истекло'
   return (
     <article
       className="rounded-2xl"
@@ -268,23 +296,35 @@ function ActiveBookingCard({
         </span>
       </div>
 
+      <p
+        className="mt-1.5 text-center"
+        style={{ fontSize: 12, color: 'var(--tg-hint)' }}
+      >
+        Покажи код при получении
+      </p>
+
       <div className="mt-3 flex flex-col gap-1">
-        <p className="font-medium" style={{ fontSize: 15, lineHeight: 1.3 }}>
+        <p className="font-semibold" style={{ fontSize: 16, lineHeight: 1.3 }}>
           {booking.box.business_name}
         </p>
-        <p
-          style={{ fontSize: 13, color: 'var(--tg-hint)', lineHeight: 1.4 }}
-        >
-          {booking.box.address}
-        </p>
-        <p
-          style={{ fontSize: 13, color: 'var(--tg-text)', lineHeight: 1.4 }}
-        >
+        <p style={{ fontSize: 13, color: 'var(--tg-text)', lineHeight: 1.4 }}>
           🕐{' '}
           {formatPickupWindow(
             booking.pickup_window_start,
             booking.pickup_window_end,
           )}
+          {' · '}
+          <span
+            className="font-medium"
+            style={{ color: expired ? 'var(--tg-hint)' : '#f5a623' }}
+          >
+            {countdown}
+          </span>
+        </p>
+        <p
+          style={{ fontSize: 13, color: 'var(--tg-hint)', lineHeight: 1.4 }}
+        >
+          {booking.box.address}
         </p>
         <p
           className="font-semibold tabular-nums"
@@ -294,45 +334,72 @@ function ActiveBookingCard({
         </p>
       </div>
 
-      <button
-        type="button"
-        onClick={onCancel}
-        className="mt-3 w-full py-2.5 rounded-lg font-medium active:opacity-70 transition"
-        style={{
-          backgroundColor: 'transparent',
-          color: 'var(--tg-destructive-text, #ff3b30)',
-          border: '1px solid var(--tg-hairline)',
-          fontSize: 13,
-          transitionDuration: '150ms',
-        }}
-      >
-        Отменить
-      </button>
+      <div className="mt-3 flex gap-2">
+        <a
+          href={routeUrl(booking.box.address)}
+          target="_blank"
+          rel="noreferrer"
+          className="flex-1 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-medium active:opacity-80 transition"
+          style={{
+            backgroundColor: 'var(--tg-secondary-bg)',
+            color: 'var(--tg-text)',
+            fontSize: 13,
+            transitionDuration: '150ms',
+          }}
+        >
+          <Navigation size={14} aria-hidden="true" />
+          <span>Маршрут</span>
+        </a>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="flex-1 py-2.5 rounded-lg font-medium active:opacity-70 transition"
+          style={{
+            backgroundColor: 'transparent',
+            color: 'var(--tg-destructive-text, #ff3b30)',
+            border: '1px solid var(--tg-hairline)',
+            fontSize: 13,
+            transitionDuration: '150ms',
+          }}
+        >
+          Отменить
+        </button>
+      </div>
     </article>
   )
 }
 
 function HistoryBookingRow({ booking }: { booking: ConsumerBooking }) {
   const label = STATUS_LABELS[booking.status] ?? booking.status
+  const pickedUp = booking.status === 'picked_up'
+  const cancelled = booking.status === 'cancelled'
   return (
     <div
       className="rounded-xl"
       style={{
         padding: '10px 12px',
         backgroundColor: 'var(--tg-secondary-bg)',
+        opacity: cancelled ? 0.6 : 0.85,
       }}
     >
       <div className="flex items-baseline justify-between gap-2">
         <span
           className="font-medium truncate"
-          style={{ fontSize: 13, color: 'var(--tg-text)' }}
+          style={{
+            fontSize: 13,
+            color: cancelled ? 'var(--tg-hint)' : 'var(--tg-text)',
+          }}
         >
           {booking.box.business_name}
         </span>
         <span
-          className="shrink-0"
-          style={{ fontSize: 11, color: 'var(--tg-hint)' }}
+          className="shrink-0 inline-flex items-center gap-1"
+          style={{
+            fontSize: 11,
+            color: pickedUp ? '#34c759' : 'var(--tg-hint)',
+          }}
         >
+          {pickedUp && <Check size={12} aria-hidden="true" />}
           {label}
         </span>
       </div>

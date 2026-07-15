@@ -153,35 +153,36 @@ export default function ProfileScreen() {
           Локация
         </h2>
         <div
-          className="rounded-xl"
+          className="rounded-xl flex items-center gap-2"
           style={{
-            padding: 14,
+            padding: '10px 14px',
             backgroundColor: 'var(--tg-secondary-bg)',
           }}
         >
-          <div className="flex items-center gap-2">
-            <span aria-hidden="true">📍</span>
-            <span style={{ fontSize: 14, color: 'var(--tg-text)' }}>
-              {locationLabel}
-            </span>
-          </div>
+          <span aria-hidden="true">📍</span>
+          <span
+            className="min-w-0 flex-1 truncate"
+            style={{ fontSize: 14, color: 'var(--tg-text)' }}
+          >
+            {locationLabel}
+          </span>
           <button
             type="button"
             onClick={handleUpdateLocation}
             disabled={updating}
             aria-busy={updating}
-            className="mt-3 w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg font-medium active:opacity-80 active:scale-[0.98] disabled:opacity-50 transition"
+            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg font-medium active:opacity-80 active:scale-[0.98] disabled:opacity-50 transition"
             style={{
-              backgroundColor: 'var(--tg-button)',
-              color: 'var(--tg-button-text)',
-              fontSize: 14,
+              padding: '6px 10px',
+              backgroundColor: 'var(--tg-bg)',
+              color: 'var(--tg-link)',
+              border: '1px solid var(--tg-hairline)',
+              fontSize: 13,
               transitionDuration: '150ms',
             }}
           >
-            <MapPin size={16} aria-hidden="true" />
-            <span>
-              {updating ? 'Обновляем…' : 'Обновить локацию'}
-            </span>
+            <MapPin size={14} aria-hidden="true" />
+            <span>{updating ? 'Обновляем…' : 'Обновить'}</span>
           </button>
         </div>
       </section>
@@ -191,7 +192,7 @@ export default function ProfileScreen() {
           className="font-semibold uppercase tracking-wide mb-2 px-1"
           style={{ fontSize: 12, color: 'var(--tg-hint)' }}
         >
-          О Plenty Mystery Box
+          О сервисе
         </h2>
         <div
           className="rounded-xl"
@@ -203,9 +204,8 @@ export default function ProfileScreen() {
             lineHeight: 1.5,
           }}
         >
-          Plenty Mystery Box помогает забрать несъеденную еду из кафе и пекарен по
-          символической цене. Каждая бронь — это меньше выброшенной еды и
-          небольшая поддержка для локального бизнеса.
+          Plenty — вечерние Шеф-боксы от заведений Минска. Каждый бокс —
+          сюрприз, собранный заведением. Бронируй, забирай, наслаждайся.
         </div>
       </section>
 
