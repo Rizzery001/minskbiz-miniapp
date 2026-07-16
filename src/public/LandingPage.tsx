@@ -36,7 +36,7 @@ export default function LandingPage() {
       <section
         className="px-5 pb-14 text-center"
         style={{
-          paddingTop: 'max(64px, env(safe-area-inset-top, 0px))',
+          paddingTop: 48,
           background:
             'radial-gradient(ellipse 120% 70% at 50% -10%, rgba(245, 166, 35, 0.22) 0%, rgba(146, 64, 14, 0.10) 45%, transparent 75%)',
         }}
@@ -119,7 +119,11 @@ export default function LandingPage() {
       <StorefrontSection />
 
       {/* For venues */}
-      <section className="px-5 py-12 mx-auto" style={{ maxWidth: 680 }}>
+      <section
+        id="partners"
+        className="px-5 py-12 mx-auto"
+        style={{ maxWidth: 680, scrollMarginTop: 64 }}
+      >
         <div
           className="rounded-2xl px-6 py-8 text-center"
           style={{
