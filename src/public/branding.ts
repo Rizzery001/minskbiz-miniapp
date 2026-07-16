@@ -3,7 +3,7 @@
  * they use a fixed dark "craft" palette instead of --tg-* theme vars.
  */
 
-export const CONSUMER_BOT_URL = 'https://t.me/plenty_misterybox_bot'
+export const CONSUMER_BOT_URL = 'https://t.me/plentybox_bot'
 export const VENUE_BOT_URL = 'https://t.me/plenty_fb_bot'
 
 export function boxDeepLink(boxId: string): string {
