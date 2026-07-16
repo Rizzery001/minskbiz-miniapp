@@ -4,6 +4,7 @@ import { formatPickupWindow, formatPriceByn } from '../consumer/format'
 import { useYandexMapsLoader } from '../lib/yandexMaps'
 import { makeBoxIconLayout } from '../shared/boxPins'
 import { fetchPublicBoxes, type PublicBox } from './api'
+import { useBookingFlow } from './BookingFlow'
 import { boxDeepLink, CONSUMER_BOT_URL, PALETTE } from './branding'
 
 const MINSK_CENTER: [number, number] = [53.902, 27.561]
@@ -19,6 +20,7 @@ const MAP_ZOOM = 12
  * light until the visitor actually scrolls to the storefront.
  */
 export default function StorefrontSection() {
+  const { start: startBooking, modal: bookingModal } = useBookingFlow()
   const [boxes, setBoxes] = useState<PublicBox[] | null>(null)
   const [failed, setFailed] = useState(false)
   const [mapWanted, setMapWanted] = useState(false)
@@ -104,10 +106,12 @@ export default function StorefrontSection() {
       {!!boxes?.length && (
         <div className="mt-6 flex flex-col gap-4">
           {boxes.map((box) => (
-            <PublicBoxCard key={box.id} box={box} />
+            <PublicBoxCard key={box.id} box={box} onBook={startBooking} />
           ))}
         </div>
       )}
+
+      {bookingModal}
     </section>
   )
 }
@@ -180,7 +184,13 @@ function StorefrontMap({ boxes }: { boxes: PublicBox[] }) {
   )
 }
 
-function PublicBoxCard({ box }: { box: PublicBox }) {
+function PublicBoxCard({
+  box,
+  onBook,
+}: {
+  box: PublicBox
+  onBook: (boxId: string) => void
+}) {
   const scarcity =
     box.slots_left === 1
       ? 'Остался последний'
@@ -248,9 +258,10 @@ function PublicBoxCard({ box }: { box: PublicBox }) {
             )}
           </span>
         </p>
-        <a
-          href={boxDeepLink(box.id)}
-          className="block mt-3 py-3 rounded-xl font-semibold text-center active:opacity-80 transition"
+        <button
+          type="button"
+          onClick={() => onBook(box.id)}
+          className="block w-full mt-3 py-3 rounded-xl font-semibold text-center active:opacity-80 transition"
           style={{
             backgroundColor: PALETTE.gold,
             color: '#171310',
@@ -258,7 +269,14 @@ function PublicBoxCard({ box }: { box: PublicBox }) {
             transitionDuration: '150ms',
           }}
         >
-          Забронировать в Telegram
+          Забронировать
+        </button>
+        <a
+          href={boxDeepLink(box.id)}
+          className="block mt-2 text-center"
+          style={{ fontSize: 13, color: PALETTE.textMuted, textDecoration: 'underline' }}
+        >
+          или в Telegram
         </a>
       </div>
     </article>
