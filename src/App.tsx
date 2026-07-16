@@ -16,6 +16,7 @@ import { getAppContext } from './lib/context'
 import { useSellerRole } from './lib/sellerRole'
 import {
   applyTheme,
+  getInitData,
   init as tgInit,
   onThemeChanged,
 } from './lib/telegram'
@@ -34,6 +35,7 @@ const SellerEdit = lazy(() => import('./pages/Seller/Edit'))
 const PrivacyPage = lazy(() => import('./pages/Legal/PrivacyPage'))
 const TermsPage = lazy(() => import('./pages/Legal/TermsPage'))
 const ConsumerApp = lazy(() => import('./consumer/ConsumerApp'))
+const PublicApp = lazy(() => import('./public/PublicApp'))
 
 const LEGAL_PATHS = new Set(['/privacy', '/terms'])
 
@@ -156,6 +158,17 @@ export default function App() {
     return (
       <Suspense fallback={<PageLoader />}>
         <ConsumerApp />
+      </Suspense>
+    )
+  }
+
+  // Plain-browser visitor (no Telegram initData, no role param) — the
+  // public plenty.by site. Inside Telegram initData is always present,
+  // so every mini-app mode is untouched.
+  if (!getInitData() && !sellerMode) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <PublicApp />
       </Suspense>
     )
   }
