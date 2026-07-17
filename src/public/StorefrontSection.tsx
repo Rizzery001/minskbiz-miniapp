@@ -3,6 +3,7 @@ import { coverGradient } from '../consumer/covers'
 import { formatPickupWindow, formatPriceByn } from '../consumer/format'
 import { useYandexMapsLoader } from '../lib/yandexMaps'
 import { makeBoxIconLayout } from '../shared/boxPins'
+import Reveal from './Reveal'
 import { fetchPublicBoxes, type PublicBox } from './api'
 import { useBookingFlow } from './BookingFlow'
 import { boxDeepLink, CONSUMER_BOT_URL, PALETTE } from './branding'
@@ -11,13 +12,9 @@ const MINSK_CENTER: [number, number] = [53.902, 27.561]
 const MAP_ZOOM = 12
 
 /**
- * Live read-only storefront (#boxes). Cards reuse the consumer cover
- * gradients and formatters; pins come from the shared layout so the
- * public map matches the mini-app. No geolocation prompt — the whole
- * city is shown from the Minsk centre. Booking is a Telegram deep link.
- *
- * The map mounts lazily (IntersectionObserver) so the landing stays
- * light until the visitor actually scrolls to the storefront.
+ * Live storefront (#boxes): map + a responsive card grid. Cards carry
+ * the cover art with grain, a price pill, venue avatar, scarcity meter
+ * and the on-site booking CTA. No geolocation prompt — whole city.
  */
 export default function StorefrontSection() {
   const { start: startBooking, modal: bookingModal } = useBookingFlow()
@@ -65,48 +62,86 @@ export default function StorefrontSection() {
     <section
       id="boxes"
       ref={sectionRef}
-      className="px-5 py-12 mx-auto w-full"
-      style={{ maxWidth: 680, scrollMarginTop: 16 }}
+      className="px-5 py-16 mx-auto w-full"
+      style={{ maxWidth: 1080, scrollMarginTop: 56 }}
     >
-      <h2 className="font-bold text-center" style={{ fontSize: 24 }}>
-        Боксы сегодня
-      </h2>
+      <Reveal>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="p-kicker flex items-center gap-2">
+              <span className="p-live" aria-hidden="true" />
+              Сегодня вечером
+            </p>
+            <h2
+              className="p-display mt-3"
+              style={{ fontSize: 'clamp(28px, 4.5vw, 44px)' }}
+            >
+              Боксы на карте
+            </h2>
+          </div>
+          {!!boxes?.length && (
+            <p style={{ fontSize: 14, color: PALETTE.textMuted }}>
+              {boxes.length}{' '}
+              {plural(boxes.length, 'бокс', 'бокса', 'боксов')} · Минск
+            </p>
+          )}
+        </div>
+      </Reveal>
 
       {mapWanted && !!boxes?.length && <StorefrontMap boxes={boxes} />}
 
       {boxes === null && !failed && (
-        <p
-          className="mt-6 text-center"
-          style={{ fontSize: 14, color: PALETTE.textMuted }}
-        >
-          Загружаем…
-        </p>
-      )}
-
-      {(empty || failed) && (
-        <div className="mt-6 text-center">
-          <p style={{ fontSize: 15, color: PALETTE.textMuted }}>
-            Боксы появляются к вечеру
-          </p>
-          <a
-            href={CONSUMER_BOT_URL}
-            className="inline-block mt-4 px-6 py-3 rounded-xl font-semibold active:opacity-80 transition"
-            style={{
-              backgroundColor: PALETTE.gold,
-              color: '#171310',
-              fontSize: 15,
-              transitionDuration: '150ms',
-            }}
-          >
-            Открыть в Telegram
-          </a>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div
+              key={i}
+              className="rounded-2xl"
+              style={{
+                height: 220,
+                background:
+                  'linear-gradient(100deg, #1c1917 40%, #232019 50%, #1c1917 60%)',
+                backgroundSize: '200% 100%',
+                animation: 'p-marquee 1.6s linear infinite',
+              }}
+            />
+          ))}
         </div>
       )}
 
+      {(empty || failed) && (
+        <Reveal>
+          <div
+            className="mt-8 rounded-3xl px-6 py-12 text-center"
+            style={{
+              border: `1px dashed ${PALETTE.hairline}`,
+            }}
+          >
+            <div style={{ fontSize: 40 }} aria-hidden="true">
+              🌙
+            </div>
+            <p className="mt-3 font-bold" style={{ fontSize: 18 }}>
+              Боксы появляются к вечеру
+            </p>
+            <p className="mt-1" style={{ fontSize: 14, color: PALETTE.textMuted }}>
+              Загляни после 17:00 — или включи уведомления в боте
+            </p>
+            <a
+              href={CONSUMER_BOT_URL}
+              className="p-pill p-pill-gold mt-6 px-7"
+              style={{ height: 48, fontSize: 15 }}
+            >
+              Открыть в Telegram
+            </a>
+          </div>
+        </Reveal>
+      )}
+
       {!!boxes?.length && (
-        <div className="mt-6 flex flex-col gap-4">
-          {boxes.map((box) => (
-            <PublicBoxCard key={box.id} box={box} onBook={startBooking} />
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {boxes.map((box, i) => (
+            <Reveal key={box.id} delay={Math.min(i * 80, 240)}>
+              <PublicBoxCard box={box} onBook={startBooking} />
+            </Reveal>
           ))}
         </div>
       )}
@@ -114,6 +149,14 @@ export default function StorefrontSection() {
       {bookingModal}
     </section>
   )
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return one
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few
+  return many
 }
 
 function StorefrontMap({ boxes }: { boxes: PublicBox[] }) {
@@ -167,16 +210,14 @@ function StorefrontMap({ boxes }: { boxes: PublicBox[] }) {
     }
   }, [api, boxes])
 
-  // The loader rejects without a configured API key — in that case the
-  // section silently degrades to the card list.
   if (!api) return null
 
   return (
     <div
       ref={containerRef}
-      className="mt-6 w-full rounded-2xl overflow-hidden"
+      className="mt-8 w-full rounded-3xl overflow-hidden"
       style={{
-        height: 320,
+        height: 340,
         border: `1px solid ${PALETTE.hairline}`,
         backgroundColor: PALETTE.bgElevated,
       }}
@@ -191,93 +232,117 @@ function PublicBoxCard({
   box: PublicBox
   onBook: (boxId: string) => void
 }) {
-  const scarcity =
-    box.slots_left === 1
-      ? 'Остался последний'
-      : `Осталось ${box.slots_left} из ${box.slots_total}`
+  const lastOne = box.slots_left === 1
+  const ratio =
+    box.slots_total > 0
+      ? Math.max(0.06, Math.min(1, box.slots_left / box.slots_total))
+      : 0
   return (
-    <article
-      id={`box-${box.id}`}
-      className="rounded-2xl overflow-hidden"
-      style={{
-        backgroundColor: PALETTE.bgElevated,
-        border: `1px solid ${PALETTE.hairline}`,
-      }}
-    >
+    <article id={`box-${box.id}`} className="p-card overflow-hidden flex flex-col">
       <div
-        className="relative flex items-center justify-center"
-        style={{
-          aspectRatio: '16 / 6',
-          background: coverGradient(box.cover_id),
-        }}
+        className="p-grain relative"
+        style={{ aspectRatio: '16 / 7', background: coverGradient(box.cover_id) }}
       >
         <span
+          className="absolute flex items-center justify-center"
+          style={{ inset: 0, fontSize: 44, filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.4))' }}
           aria-hidden="true"
-          style={{
-            fontSize: 40,
-            filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.35))',
-          }}
         >
           👨‍🍳
         </span>
-      </div>
-      <div className="px-4 pt-3 pb-4">
-        <div className="flex items-baseline justify-between gap-3">
-          <h3 className="font-bold min-w-0 truncate" style={{ fontSize: 17 }}>
-            {box.business_name}
-          </h3>
-          <span
-            className="shrink-0 font-bold tabular-nums"
-            style={{ fontSize: 17, color: PALETTE.gold }}
-          >
-            {formatPriceByn(box.price_byn)}
-          </span>
-        </div>
-        <p
-          className="mt-0.5 truncate"
-          style={{ fontSize: 13, color: PALETTE.textMuted }}
-        >
-          {box.address}
-        </p>
-        <p
-          className="mt-2 font-semibold"
+        <span
+          className="absolute rounded-full px-3 py-1.5 font-bold tabular-nums"
           style={{
+            top: 10,
+            right: 10,
             fontSize: 14,
-            color: box.slots_left === 1 ? PALETTE.gold : PALETTE.text,
+            backgroundColor: 'rgba(18, 17, 16, 0.8)',
+            color: PALETTE.gold,
+            backdropFilter: 'blur(4px)',
           }}
         >
-          {scarcity}
+          {formatPriceByn(box.price_byn)}
+        </span>
+        {lastOne && (
           <span
-            className="font-normal"
-            style={{ color: PALETTE.textMuted }}
+            className="absolute rounded-full px-3 py-1.5 font-bold"
+            style={{
+              top: 10,
+              left: 10,
+              fontSize: 12,
+              background: 'linear-gradient(180deg, #f6b83e, #ef9d0e)',
+              color: '#171310',
+            }}
           >
-            {' · '}
-            {formatPickupWindow(
-              box.pickup_window_start,
-              box.pickup_window_end,
-            )}
+            Остался последний
           </span>
-        </p>
-        <button
-          type="button"
-          onClick={() => onBook(box.id)}
-          className="block w-full mt-3 py-3 rounded-xl font-semibold text-center active:opacity-80 transition"
-          style={{
-            backgroundColor: PALETTE.gold,
-            color: '#171310',
-            fontSize: 15,
-            transitionDuration: '150ms',
-          }}
-        >
-          Забронировать
-        </button>
-        <a
-          href={boxDeepLink(box.id)}
-          className="block mt-2 text-center"
-          style={{ fontSize: 13, color: PALETTE.textMuted, textDecoration: 'underline' }}
-        >
-          или в Telegram
-        </a>
+        )}
+      </div>
+
+      <div className="flex-1 flex flex-col px-5 pt-4 pb-5">
+        <div className="flex items-center gap-3">
+          <span
+            className="shrink-0 flex items-center justify-center rounded-full font-bold"
+            style={{
+              width: 36,
+              height: 36,
+              fontSize: 15,
+              background: 'rgba(245, 166, 35, 0.15)',
+              color: PALETTE.gold,
+            }}
+            aria-hidden="true"
+          >
+            {box.business_name.trim().charAt(0).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <h3 className="font-bold truncate" style={{ fontSize: 17 }}>
+              {box.business_name}
+            </h3>
+            <p className="truncate" style={{ fontSize: 12.5, color: PALETTE.textMuted }}>
+              {box.address}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <div
+            className="flex items-baseline justify-between"
+            style={{ fontSize: 13 }}
+          >
+            <span
+              className="font-semibold"
+              style={{ color: lastOne ? PALETTE.gold : PALETTE.text }}
+            >
+              {lastOne
+                ? 'Остался последний'
+                : `Осталось ${box.slots_left} из ${box.slots_total}`}
+            </span>
+            <span style={{ color: PALETTE.textMuted }}>
+              🕐 {formatPickupWindow(box.pickup_window_start, box.pickup_window_end)}
+            </span>
+          </div>
+          <div className="p-meter mt-2" aria-hidden="true">
+            <span style={{ width: `${ratio * 100}%` }} />
+          </div>
+        </div>
+
+        <div className="mt-auto pt-4">
+          <button
+            type="button"
+            onClick={() => onBook(box.id)}
+            className="p-pill p-pill-gold w-full"
+            style={{ height: 48, fontSize: 15 }}
+          >
+            Забронировать
+          </button>
+          <a
+            href={boxDeepLink(box.id)}
+            className="block mt-2 text-center"
+            style={{ fontSize: 12.5, color: PALETTE.textMuted, textDecoration: 'underline' }}
+          >
+            или в Telegram
+          </a>
+        </div>
       </div>
     </article>
   )
