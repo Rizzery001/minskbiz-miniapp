@@ -32,10 +32,22 @@ export default function SiteHeader() {
     >
       <Link
         to="/"
-        className="font-bold flex items-center gap-1.5"
-        style={{ fontSize: 18, color: PALETTE.text }}
+        className="font-bold flex items-center gap-2"
+        style={{ fontSize: 18, color: PALETTE.text, letterSpacing: '-0.01em' }}
       >
-        <span aria-hidden="true">👨‍🍳</span>
+        <span
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 30,
+            height: 30,
+            fontSize: 16,
+            background: 'rgba(245, 166, 35, 0.16)',
+            border: '1px solid rgba(245, 166, 35, 0.3)',
+          }}
+          aria-hidden="true"
+        >
+          👨‍🍳
+        </span>
         <span>Plenty</span>
       </Link>
 
@@ -58,17 +70,10 @@ export default function SiteHeader() {
 
       <Link
         to="/account"
-        className="px-4 py-2 rounded-xl font-semibold active:opacity-80 transition"
-        style={{
-          fontSize: 14,
-          transitionDuration: '150ms',
-          ...(auth.status === 'authenticated'
-            ? {
-                border: `1px solid ${PALETTE.hairline}`,
-                color: PALETTE.text,
-              }
-            : { backgroundColor: PALETTE.gold, color: '#171310' }),
-        }}
+        className={`p-pill px-5 ${
+          auth.status === 'authenticated' ? 'p-pill-ghost' : 'p-pill-gold'
+        }`}
+        style={{ height: 38, fontSize: 14 }}
       >
         {auth.status === 'authenticated' ? 'Кабинет' : 'Войти'}
       </Link>

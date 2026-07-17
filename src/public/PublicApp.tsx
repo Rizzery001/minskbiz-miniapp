@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
 import AccountPage from './AccountPage'
 import LandingPage from './LandingPage'
+import PublicStyles from './PublicStyles'
 import SiteHeader from './SiteHeader'
 import { PALETTE } from './branding'
 
@@ -13,9 +14,10 @@ import { PALETTE } from './branding'
 export default function PublicApp() {
   return (
     <div
-      className="min-h-full flex flex-col"
+      className="plenty-site min-h-full flex flex-col"
       style={{ backgroundColor: PALETTE.bg }}
     >
+      <PublicStyles />
       <SiteHeader />
       <div className="flex-1">
         <Routes>
