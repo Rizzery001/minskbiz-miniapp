@@ -32,9 +32,11 @@ export interface ConsumerBoxesResponse {
 
 export type ConsumerBookingStatus =
   | 'pending'
+  | 'confirmed'
   | 'picked_up'
   | 'expired'
   | 'cancelled'
+  | 'rejected'
 
 export interface ConsumerBookingBoxSnapshot {
   id?: string
