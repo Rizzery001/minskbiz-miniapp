@@ -14,7 +14,7 @@ import Toast, { useToast } from '../components/Toast'
 import { ActiveBookingCard, HistoryBookingRow } from '../../shared/bookingCards'
 import type { ConsumerBooking } from '../types'
 
-const HISTORY_STATUSES = new Set(['picked_up', 'expired', 'cancelled'])
+const HISTORY_STATUSES = new Set(['picked_up', 'expired', 'cancelled', 'rejected'])
 
 export default function BookingsScreen() {
   const navigate = useNavigate()
@@ -66,7 +66,7 @@ export default function BookingsScreen() {
     const a: ConsumerBooking[] = []
     const h: ConsumerBooking[] = []
     for (const b of bookings ?? []) {
-      if (b.status === 'pending') a.push(b)
+      if (b.status === 'pending' || b.status === 'confirmed') a.push(b)
       else if (HISTORY_STATUSES.has(b.status)) h.push(b)
     }
     // Newest first.

@@ -10,7 +10,7 @@ import { CONSUMER_BOT_URL, PALETTE } from './branding'
 import { TG_DARK_VARS } from './tgDarkVars'
 import { WebApiError, cancelBookingWeb, getMyBookingsWeb } from './webApi'
 
-const HISTORY_STATUSES = new Set(['picked_up', 'expired', 'cancelled'])
+const HISTORY_STATUSES = new Set(['picked_up', 'expired', 'cancelled', 'rejected'])
 
 /**
  * plenty.by cabinet — the same account as the Telegram mini-app
@@ -114,7 +114,7 @@ function CabinetBody({ consentPending }: { consentPending: boolean }) {
     const a: ConsumerBooking[] = []
     const h: ConsumerBooking[] = []
     for (const b of bookings ?? []) {
-      if (b.status === 'pending') a.push(b)
+      if (b.status === 'pending' || b.status === 'confirmed') a.push(b)
       else if (HISTORY_STATUSES.has(b.status)) h.push(b)
     }
     a.sort((x, y) => y.created_at.localeCompare(x.created_at))

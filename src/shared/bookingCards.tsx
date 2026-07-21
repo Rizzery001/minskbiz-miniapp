@@ -9,6 +9,18 @@ import { Check, Navigation } from 'lucide-react'
 import { formatPickupWindow, formatPriceByn } from '../consumer/format'
 import type { ConsumerBooking } from '../consumer/types'
 
+export function bookingStatusBadge(
+  status: ConsumerBooking['status'],
+): { label: string; color: string } | null {
+  if (status === 'pending') {
+    return { label: '⏳ Ждёт подтверждения заведения', color: '#f5a623' }
+  }
+  if (status === 'confirmed') {
+    return { label: '✅ Готово к выдаче', color: '#34c759' }
+  }
+  return null
+}
+
 export function formatCountdown(endIso: string, nowMs: number): string {
   const end = new Date(endIso).getTime()
   if (!Number.isFinite(end)) return ''
@@ -74,6 +86,19 @@ export function ActiveBookingCard({
       >
         Покажи код при получении
       </p>
+
+      {(() => {
+        const badge = bookingStatusBadge(booking.status)
+        if (!badge) return null
+        return (
+          <p
+            className="mt-2 text-center font-semibold"
+            style={{ fontSize: 13, color: badge.color }}
+          >
+            {badge.label}
+          </p>
+        )
+      })()}
 
       <div className="mt-3 flex flex-col gap-1">
         <p className="font-semibold" style={{ fontSize: 16, lineHeight: 1.3 }}>
@@ -189,4 +214,5 @@ export const STATUS_LABELS: Record<string, string> = {
   picked_up: 'Получено',
   expired: 'Истекло',
   cancelled: 'Отменено',
+  rejected: 'Отклонено заведением',
 }

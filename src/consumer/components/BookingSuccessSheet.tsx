@@ -118,7 +118,7 @@ export default function BookingSuccessSheet({ booking, onClose }: Props) {
                 lineHeight: 1.4,
               }}
             >
-              Покажи этот код в кафе при получении
+              Заведение подтвердит заказ к вечеру. Покажи код при получении
             </p>
           </div>
 

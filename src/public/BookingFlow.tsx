@@ -135,14 +135,14 @@ export function useBookingFlow() {
               {stage.booking.code}
             </div>
             <p className="mt-2" style={{ fontSize: 13, color: PALETTE.textMuted }}>
-              Покажи код при получении. Он сохранён в{' '}
+              Заведение подтвердит заказ к вечеру — статус появится в{' '}
               <Link
                 to="/account"
                 style={{ color: PALETTE.gold, textDecoration: 'underline' }}
               >
                 кабинете
               </Link>
-              .
+              . Покажи код при получении.
             </p>
             <button
               type="button"

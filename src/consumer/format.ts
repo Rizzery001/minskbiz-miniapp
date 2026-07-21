@@ -5,7 +5,22 @@
  */
 
 export function formatPickupWindow(startIso: string, endIso: string): string {
-  return `сегодня ${formatTime(startIso)} – ${formatTime(endIso)}`
+  const day = dayWord(startIso)
+  return `${day} ${formatTime(startIso)} – ${formatTime(endIso)}`
+}
+
+function dayWord(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return 'сегодня'
+  const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const that = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+  const diffDays = Math.round((that.getTime() - today.getTime()) / 86_400_000)
+  if (diffDays <= 0) return 'сегодня'
+  if (diffDays === 1) return 'завтра'
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  return `${dd}.${mm}`
 }
 
 function formatTime(iso: string): string {
